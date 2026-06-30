@@ -47,7 +47,8 @@ button {
   padding: 48px;
 }
 
-.app-surface {
+.app-surface,
+.citynow-shell {
   width: calc(100vw - 96px);
   max-width: 1320px;
   min-width: 0;
@@ -60,6 +61,17 @@ button {
   border-radius: 16px;
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.58);
   overflow: hidden;
+}
+
+@media (min-width: 1280px) {
+  .citynow-shell {
+    width: min(1320px, calc(100vw - 96px)) !important;
+    max-width: 1320px !important;
+    min-width: 0 !important;
+    margin-inline: auto !important;
+    transform: none !important;
+    zoom: 1 !important;
+  }
 }
 
 .top-nav {
@@ -576,7 +588,8 @@ p {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.today-main-grid {
+.today-main-grid,
+.today-utility-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(380px, 0.95fr);
   align-items: start;
@@ -1014,7 +1027,8 @@ p {
   font-size: 11px;
 }
 
-.tonight-grid {
+.tonight-grid,
+.today-discovery-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(400px, 1fr);
   align-items: start;
@@ -1023,7 +1037,8 @@ p {
 
 .featured-event {
   display: grid;
-  grid-template-columns: minmax(360px, 0.95fr) minmax(300px, 1.05fr);
+  grid-template-columns: minmax(360px, 0.95fr) minmax(320px, 1.05fr);
+  min-height: 250px;
   padding: 0;
   overflow: hidden;
   border-color: rgba(184, 213, 236, 0.05);

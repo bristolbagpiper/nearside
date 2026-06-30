@@ -334,7 +334,7 @@ function App() {
     <MotionConfig reducedMotion="user">
       <LayoutGroup id="citynow-shell">
         <div className="page-shell">
-          <div className="app-surface">
+          <div className="app-surface citynow-shell">
             <TopNav route={route} city={city} onCityChange={setCity} onNavigate={navigate} />
             <main className="route-frame">
               {route === "/today" && (
@@ -504,7 +504,7 @@ function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }) 
         <DisruptionAlert onNavigate={onNavigate} />
       </section>
 
-      <section className="today-main-grid">
+      <section className="today-main-grid today-utility-grid">
         <TravelSummary
           ref={travelRef}
           mode={travelMode}
@@ -522,7 +522,7 @@ function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }) 
         />
       </section>
 
-      <section className="tonight-grid">
+      <section className="tonight-grid today-discovery-grid">
         <FeaturedEvent
           event={featured}
           saved={savedIds.includes(featured.id)}
