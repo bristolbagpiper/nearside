@@ -1,3 +1,5 @@
+const asset = (name) => `${import.meta.env.BASE_URL}assets/${name}`;
+
 export const cityOptions = [
   { name: "Bristol", tagline: "Harbour and hills" },
   { name: "Bath", tagline: "Compact city centre" },
@@ -100,7 +102,7 @@ export const events = [
     time: "18:00-21:30",
     venue: "Ashton Court Estate",
     description: "Evening launches, food stalls and a calm view back across the city when the weather allows.",
-    image: "/assets/balloon-fiesta.png",
+    image: asset("balloon-fiesta.png"),
   },
   {
     id: "strange-brew",
@@ -110,7 +112,7 @@ export const events = [
     time: "19:30-23:00",
     venue: "Stokes Croft",
     description: "A compact evening gig with local support and late trains still within reach from the centre.",
-    image: "/assets/strange-brew.png",
+    image: asset("strange-brew.png"),
   },
   {
     id: "watershed",
@@ -120,7 +122,7 @@ export const events = [
     time: "20:15-22:10",
     venue: "Harbourside",
     description: "Independent film screening by the water, close to bus stops and late food around Canons Road.",
-    image: "/assets/watershed.png",
+    image: asset("watershed.png"),
   },
   {
     id: "market-night",
@@ -130,7 +132,7 @@ export const events = [
     time: "17:00-20:30",
     venue: "Old City",
     description: "Covered food stalls and independent traders in the old market lanes.",
-    image: "/assets/market-night.png",
+    image: asset("market-night.png"),
   },
 ];
 
@@ -143,7 +145,7 @@ export const places = [
     hours: "Open until 18:00",
     neighbourhood: "Harbourside",
     description: "Waterside gallery, bookshop and cafe with easy access from the centre.",
-    image: "/assets/arnolfini.png",
+    image: asset("arnolfini.png"),
   },
   {
     id: "cabot-tower",
@@ -153,7 +155,7 @@ export const places = [
     hours: "Park open",
     neighbourhood: "Brandon Hill",
     description: "A short climb for one of the best views over Bristol and the harbour.",
-    image: "/assets/cabot-tower.png",
+    image: asset("cabot-tower.png"),
   },
   {
     id: "st-nicks",
@@ -163,7 +165,7 @@ export const places = [
     hours: "Open until 17:30",
     neighbourhood: "Old City",
     description: "Covered market with quick lunch options and independent traders.",
-    image: "/assets/st-nicks.png",
+    image: asset("st-nicks.png"),
   },
   {
     id: "spike-island",
@@ -173,7 +175,7 @@ export const places = [
     hours: "Open until 17:00",
     neighbourhood: "Southville",
     description: "Contemporary art space close to the harbour path and local cafes.",
-    image: "/assets/spike-island.png",
+    image: asset("spike-island.png"),
   },
   {
     id: "clifton-bridge",
@@ -183,7 +185,7 @@ export const places = [
     hours: "Open",
     neighbourhood: "Clifton",
     description: "A classic Bristol landmark with open views across the Avon Gorge.",
-    image: "/assets/clifton-bridge.png",
+    image: asset("clifton-bridge.png"),
   },
 ];
 

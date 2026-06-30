@@ -65,9 +65,9 @@ const iconMap = {
 };
 
 function getRoute() {
-  const path = window.location.pathname;
-  if (path === "/") return "/today";
-  return navItems.some((item) => item.path === path) ? path : "/today";
+  const hashPath = window.location.hash.replace(/^#/, "");
+  if (!hashPath) return "/today";
+  return navItems.some((item) => item.path === hashPath) ? hashPath : "/today";
 }
 
 function useLocalStorageState(key, fallback) {
@@ -94,13 +94,16 @@ function App() {
   const [drawerItem, setDrawerItem] = useState(null);
 
   useEffect(() => {
-    const onPop = () => setRoute(getRoute());
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    const syncRoute = () => setRoute(getRoute());
+    if (!window.location.hash) {
+      window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#/today`);
+    }
+    window.addEventListener("hashchange", syncRoute);
+    return () => window.removeEventListener("hashchange", syncRoute);
   }, []);
 
   const navigate = (path) => {
-    window.history.pushState({}, "", path);
+    window.location.hash = path;
     setRoute(path);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
