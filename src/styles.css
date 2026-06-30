@@ -1,5 +1,6 @@
 :root {
-  --canvas: #02050a;
+  --canvas: #06111b;
+  --canvas-deep: #02060d;
   --app: #06111d;
   --panel: #0a1b2b;
   --panel-raised: #0d2235;
@@ -28,8 +29,9 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 50% -18%, rgba(42, 78, 109, 0.22), transparent 34%),
-    linear-gradient(180deg, #010409, #02060b 38%, #010306);
+    radial-gradient(circle at 18% 12%, rgba(63, 112, 153, 0.16), transparent 28%),
+    radial-gradient(circle at 82% 8%, rgba(29, 71, 106, 0.16), transparent 24%),
+    linear-gradient(180deg, var(--canvas), #07131f 26%, var(--canvas-deep) 100%);
   color: var(--text);
 }
 
@@ -44,19 +46,19 @@ button {
 
 .page-shell {
   min-height: auto;
-  padding: clamp(14px, 1.8vw, 34px);
+  padding: clamp(8px, 1vw, 16px);
 }
 
 .app-surface {
-  width: min(1840px, calc(100vw - clamp(24px, 3vw, 58px)));
+  width: calc(100vw - clamp(16px, 2vw, 32px));
   margin: 0 auto;
-  min-height: auto;
+  min-height: calc(100vh - clamp(16px, 2vw, 32px));
   background:
     radial-gradient(circle at 82% 4%, rgba(46, 86, 119, 0.22), transparent 26%),
     linear-gradient(180deg, rgba(8, 26, 43, 0.98), rgba(4, 15, 26, 0.99)),
     var(--app);
   border: 1px solid rgba(184, 213, 236, 0.1);
-  border-radius: 20px;
+  border-radius: 16px;
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.58);
   overflow: hidden;
 }
