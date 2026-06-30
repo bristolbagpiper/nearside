@@ -33,6 +33,13 @@ body {
   color: var(--text);
 }
 
+html,
+body,
+#root {
+  transform: none;
+  zoom: 1;
+}
+
 button,
 input {
   font: inherit;
@@ -49,10 +56,6 @@ button {
 
 .app-surface,
 .citynow-shell {
-  width: calc(100vw - 96px);
-  max-width: 1320px;
-  min-width: 0;
-  margin: 0 auto;
   min-height: calc(100vh - 96px);
   background:
     linear-gradient(180deg, rgba(8, 26, 43, 0.98), rgba(4, 15, 26, 0.99)),
@@ -63,15 +66,13 @@ button {
   overflow: hidden;
 }
 
-@media (min-width: 1280px) {
-  .citynow-shell {
-    width: min(1320px, calc(100vw - 96px)) !important;
-    max-width: 1320px !important;
-    min-width: 0 !important;
-    margin-inline: auto !important;
-    transform: none !important;
-    zoom: 1 !important;
-  }
+.citynow-shell {
+  width: min(1320px, calc(100vw - 96px));
+  max-width: 1320px;
+  min-width: 0;
+  margin-inline: auto;
+  transform: none;
+  zoom: 1;
 }
 
 .top-nav {
