@@ -76,13 +76,13 @@ export const roadRows = [
 ];
 
 export const hourlyForecast = [
-  { id: "now", label: "Now", temp: 14, rain: 40, icon: "rain", note: "Light rain is still around central Bristol." },
-  { id: "14", label: "14:00", temp: 14, rain: 50, icon: "rain", note: "Showers continue, especially north of the centre." },
-  { id: "15", label: "15:00", temp: 15, rain: 30, icon: "rain", note: "Rain begins to break up." },
-  { id: "16", label: "16:00", temp: 15, rain: 20, icon: "sun", note: "Cloud thins with a better dry spell building." },
-  { id: "17", label: "17:00", temp: 16, rain: 10, icon: "sun", note: "Best dry window starts around this time." },
-  { id: "18", label: "18:00", temp: 15, rain: 10, icon: "sun", note: "Dryer and brighter, but pavements may still be wet." },
-  { id: "19", label: "19:00", temp: 14, rain: 20, icon: "rain", note: "A few showers may return after early evening." },
+  { id: "now", label: "Now", temp: 14, rain: 40, icon: "rain", note: "Light rain is still around central Bristol.", condition: "Light rain", wind: "11 mph SW" },
+  { id: "14", label: "14:00", temp: 14, rain: 50, icon: "rain", note: "Showers continue, especially north of the centre.", condition: "Steady showers", wind: "12 mph SW" },
+  { id: "15", label: "15:00", temp: 15, rain: 30, icon: "rain", note: "Rain begins to break up.", condition: "Rain easing", wind: "10 mph W" },
+  { id: "16", label: "16:00", temp: 15, rain: 20, icon: "sun", note: "Cloud thins with a better dry spell building.", condition: "Cloudy breaks", wind: "9 mph W" },
+  { id: "17", label: "17:00", temp: 16, rain: 10, icon: "sun", note: "Best dry window starts around this time.", condition: "Dry spell", wind: "8 mph W" },
+  { id: "18", label: "18:00", temp: 15, rain: 10, icon: "sun", note: "Dryer and brighter, but pavements may still be wet.", condition: "Brighter skies", wind: "7 mph W" },
+  { id: "19", label: "19:00", temp: 14, rain: 20, icon: "rain", note: "A few showers may return after early evening.", condition: "Chance of showers", wind: "8 mph W" },
 ];
 
 export const dailyForecast = [
