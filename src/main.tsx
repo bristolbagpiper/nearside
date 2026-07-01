@@ -52,7 +52,6 @@ import type {
   DrawerItem,
   EventItem,
   ExploreMode,
-  FocusTarget,
   HourlyForecastHour,
   PlaceItem,
   PulseIconKey,
@@ -64,7 +63,6 @@ import type {
   Tone,
   TransportDeparture,
   TransportStop,
-  TravelMode,
   TravelPageTab,
   TravelRow,
   TravelRowsByMode,
@@ -77,7 +75,6 @@ const MOTION_EASE = [0.22, 1, 0.36, 1] as const;
 const MOTION_QUICK = { duration: 0.2, ease: MOTION_EASE };
 const MOTION_SWAP = { duration: 0.18, ease: MOTION_EASE };
 const SHEET_TRANSITION = { duration: 0.22, ease: MOTION_EASE };
-const FOCUS_TIMEOUT_MS = 900;
 
 const navItems: Array<{ label: string; path: RoutePath }> = [
   { label: "Today", path: "/today" },
@@ -738,6 +735,30 @@ interface CityDashboardData {
   hourlyForecast: HourlyForecastHour[];
 }
 
+function getRoutePathFromPulseTarget(target: PulseTarget): RoutePath {
+  return target === "weather" ? "/weather" : "/travel";
+}
+
+function getCityBriefingSummary(snapshot: WeatherSnapshot, disruption: DisruptionState, pulseItems: CityPulseItem[]): string {
+  const roadsPulse = pulseItems.find((item) => item.id === "roads");
+  const disruptionAreaMatch = disruption.headline.match(/but (.+?) is slower than usual/i);
+  const disruptionArea = disruptionAreaMatch?.[1] ?? "the main corridor";
+  const dryWindowTime = snapshot.dryWindow.match(/(\d{1,2}:\d{2})/)?.[1] ?? "later";
+  const weatherLine = /showers|rain/i.test(snapshot.condition)
+    ? `Showers ease after ${dryWindowTime}`
+    : snapshot.summary.replace(/\.$/, "");
+  const roadsLine = roadsPulse?.status === "Slow in places"
+    ? "city-centre traffic is slower than usual"
+    : (roadsPulse?.detail ?? "traffic is moving normally").replace(/\.$/, "").toLowerCase();
+
+  return `Minor delays on routes ${disruption.routes[0]} and ${disruption.routes[1]} around ${disruptionArea}. ${weatherLine}; ${roadsLine}.`;
+}
+
+function getWeatherPracticalLine(snapshot: WeatherSnapshot): string {
+  const dryWindowTime = snapshot.dryWindow.match(/(\d{1,2}:\d{2})/)?.[1] ?? "later";
+  return `Rain easing after ${dryWindowTime}. Light layer recommended.`;
+}
+
 interface CityVariant {
   currentWeather: WeatherSnapshot;
   disruption: DisruptionState;
@@ -769,22 +790,6 @@ function useLocalStorageState<T>(key: string, fallback: T): [T, Dispatch<SetStat
   }, [key, value]);
 
   return [value, setValue];
-}
-
-function shouldScrollIntoView(element: Element | null): boolean {
-  if (!element) return false;
-  const rect = element.getBoundingClientRect();
-  return rect.top < 88 || rect.bottom > window.innerHeight - 88;
-}
-
-function scrollIntoComfortView(element: HTMLElement | null): void {
-  if (!element) return;
-  if (!shouldScrollIntoView(element)) return;
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  element.scrollIntoView({
-    behavior: reduceMotion ? "auto" : "smooth",
-    block: "center",
-  });
 }
 
 function App() {
@@ -1026,65 +1031,40 @@ interface TodayPageProps {
 }
 
 function TodayPage({ city, dashboardData, onNavigate, savedIds, onToggleSaved, onOpenDrawer }: TodayPageProps) {
-  const [selectedPulse, setSelectedPulse] = useState<PulseId>(dashboardData.pulseItems[0]!.id);
   const [travelTab, setTravelTab] = useState<TravelSummaryTab>("Nearby");
-  const [travelMode, setTravelMode] = useState<TravelMode>("transport");
-  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
   const travelRef = useRef<HTMLElement | null>(null);
   const weatherRef = useRef<HTMLElement | null>(null);
   const featured = events[0]!;
   const otherEvents = events.slice(1, 4);
-
-  const focusModule = (target: FocusTarget) => {
-    setFocusTarget(target);
-    const ref = target === "weather" ? weatherRef : travelRef;
-    window.setTimeout(() => {
-      scrollIntoComfortView(ref.current);
-      ref.current?.focus({ preventScroll: true });
-    }, 20);
-    window.setTimeout(() => setFocusTarget(null), FOCUS_TIMEOUT_MS);
-  };
-
-  const handlePulseSelect = (item: CityPulseItem) => {
-    setSelectedPulse(item.id);
-    if (item.id === "transport") {
-      setTravelMode("transport");
-      setTravelTab("Nearby");
-      focusModule("travel");
-    }
-    if (item.id === "roads") {
-      setTravelMode("roads");
-      focusModule("travel");
-    }
-    if (item.id === "weather") {
-      focusModule("weather");
-    }
-    if (item.id === "air") {
-      setTravelMode("air");
-      focusModule("travel");
-    }
-  };
+  const cityBriefingSummary = getCityBriefingSummary(
+    dashboardData.currentWeather,
+    dashboardData.disruption,
+    dashboardData.pulseItems,
+  );
+  const airPulse = dashboardData.pulseItems.find((item) => item.id === "air");
 
   return (
-    <div className="page-content fade-in">
-      <section className="intro-grid">
+    <div className="page-content today-page">
+      <section className="today-context-row">
         <div>
           <h1>{getGreeting()}, {city.name}</h1>
-          <p>A useful read on the city before you head out.</p>
+          <p className="today-brief-summary">{cityBriefingSummary}</p>
         </div>
         <CurrentWeatherCard weather={dashboardData.currentWeather} onClick={() => onNavigate("/weather")} />
       </section>
 
-      <section className="section-block">
-        <h2>City pulse</h2>
+      <section className="today-pulse-section">
+        <div className="today-section-kicker">
+          <span>City pulse</span>
+          <small>Live operating picture</small>
+        </div>
         <LayoutGroup id="city-pulse">
           <div className="pulse-grid">
             {dashboardData.pulseItems.map((item) => (
               <PulseStatusCard
                 key={item.id}
                 item={item}
-                selected={selectedPulse === item.id}
-                onClick={() => handlePulseSelect(item)}
+                onClick={() => onNavigate(getRoutePathFromPulseTarget(item.target))}
               />
             ))}
           </div>
@@ -1092,33 +1072,32 @@ function TodayPage({ city, dashboardData, onNavigate, savedIds, onToggleSaved, o
         <DisruptionAlert disruption={dashboardData.disruption} onNavigate={onNavigate} />
       </section>
 
-      <section className="today-practical-shell panel">
-        <div className="today-practical-grid">
-          <TravelSummary
-            ref={travelRef}
-            mode={travelMode}
-            activePulse={selectedPulse}
-            highlighted={focusTarget === "travel"}
-            activeTab={travelTab}
-            onTabChange={setTravelTab}
-            travelRows={dashboardData.travelRows}
-            onNavigate={onNavigate}
-            embedded
-          />
-          <WeatherSummary
-            ref={weatherRef}
-            active={selectedPulse === "weather"}
-            highlighted={focusTarget === "weather"}
-            snapshot={dashboardData.currentWeather}
-            hours={dashboardData.hourlyForecast}
-            onNavigate={onNavigate}
-            embedded
-          />
-        </div>
+      <section className="today-live-city" aria-label="Live city information">
+        <TravelSummary
+          ref={travelRef}
+          activeTab={travelTab}
+          onTabChange={setTravelTab}
+          travelRows={dashboardData.travelRows}
+          disruption={dashboardData.disruption}
+          onNavigate={onNavigate}
+          embedded
+        />
+        <WeatherSummary
+          ref={weatherRef}
+          snapshot={dashboardData.currentWeather}
+          hours={dashboardData.hourlyForecast}
+          airQualityNote={airPulse ? `${airPulse.label} ${airPulse.status.toLowerCase()} across ${city.name}.` : null}
+          onNavigate={onNavigate}
+          embedded
+        />
       </section>
 
-      <section className="today-discovery-shell panel">
-        <div className="today-discovery-grid-embedded">
+      <section className="today-tonight" aria-label={`Tonight in ${city.name}`}>
+        <div className="today-section-kicker">
+          <span>Tonight</span>
+          <small>Events, places and days out</small>
+        </div>
+        <div className="today-tonight-grid">
           <FeaturedEvent
             event={featured}
             saved={savedIds.includes(featured.id)}
@@ -1182,25 +1161,23 @@ function CurrentWeatherCard({ weather, onClick }: CurrentWeatherCardProps) {
 
 interface PulseStatusCardProps {
   item: CityPulseItem;
-  selected: boolean;
   onClick: () => void;
 }
 
-function PulseStatusCard({ item, selected, onClick }: PulseStatusCardProps) {
+function PulseStatusCard({ item, onClick }: PulseStatusCardProps) {
   const Icon = iconMap[item.icon];
   return (
-    <Button
-      className={`cn-pulse-segment ${item.tone} ${selected ? "selected" : ""}`}
-      onPress={onClick}
-      aria-pressed={selected}
+    <motion.button
+      className={`pulse-card ${item.tone}`}
+      onClick={onClick}
+      whileHover={{ y: -1 }}
+      transition={MOTION_QUICK}
     >
-      <span className="cn-pulse-icon"><Icon size={19} /></span>
-      <span>
-        <small>{item.label}</small>
-        <strong>{item.status}</strong>
-        <em>{item.detail}</em>
-      </span>
-    </Button>
+      <span className="pulse-card-content pulse-icon"><Icon size={22} /></span>
+      <span className="pulse-card-content pulse-label">{item.label}</span>
+      <strong className="pulse-card-content">{item.status}</strong>
+      <span className="pulse-card-content">{item.detail}</span>
+    </motion.button>
   );
 }
 
@@ -1210,123 +1187,151 @@ interface DisruptionAlertProps {
 }
 
 function DisruptionAlert({ disruption, onNavigate }: DisruptionAlertProps) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
-    <Disclosure className="cn-alert-disclosure">
-      <div className="cn-alert-row">
-        <Disclosure.Heading className="cn-alert-heading">
-          <Disclosure.Trigger className="cn-alert-trigger">
+    <motion.div className="disruption-wrap" layout transition={MOTION_QUICK}>
+      <div className="disruption-alert-row">
+        <motion.button
+          className="disruption-alert"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          whileHover={{ y: -1 }}
+          transition={MOTION_QUICK}
+        >
           <TriangleAlert size={17} />
           <span>
             <strong>{disruption.headline}</strong>
             <small>{disruption.metadata} · {disruption.updated} · Click for details</small>
           </span>
-            <Disclosure.Indicator className="cn-alert-indicator">
-              <ChevronDown size={16} />
-            </Disclosure.Indicator>
-          </Disclosure.Trigger>
-        </Disclosure.Heading>
-        <Button className="text-link alert-link" onPress={() => onNavigate("/travel")}>
+          <ChevronDown className="alert-chevron" size={16} />
+        </motion.button>
+        <button className="text-link alert-link" onClick={() => onNavigate("/travel")}>
           See travel
-        </Button>
+        </button>
       </div>
-      <Disclosure.Content className="cn-alert-content">
-        <Disclosure.Body className="disruption-details">
-          <span><strong>{disruption.routes[0]}</strong> Route affected by local congestion</span>
-          <span><strong>{disruption.routes[1]}</strong> Short holds through the local corridor</span>
-          <span><strong>Nearby stop</strong> {disruption.nearbyStop}</span>
-          <small>{disruption.operationalDetail} · {disruption.updated}</small>
-        </Disclosure.Body>
-      </Disclosure.Content>
-    </Disclosure>
+      <AnimatePresence initial={false}>
+        {expanded ? (
+          <motion.div
+            key="disruption-details"
+            className="disruption-details"
+            initial={{ opacity: 0, y: 3 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 3 }}
+            transition={MOTION_SWAP}
+          >
+            <span><strong>{disruption.routes[0]}</strong> Route affected by local congestion</span>
+            <span><strong>{disruption.routes[1]}</strong> Short holds through the local corridor</span>
+            <span><strong>Nearby stop</strong> {disruption.nearbyStop}</span>
+            <small>{disruption.operationalDetail} · {disruption.updated}</small>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
 interface TravelSummaryProps {
-  mode: TravelMode;
-  activePulse: PulseId;
-  highlighted: boolean;
   activeTab: TravelSummaryTab;
   onTabChange: Dispatch<SetStateAction<TravelSummaryTab>>;
   travelRows: TravelRowsByMode;
+  disruption: DisruptionState;
   onNavigate: NavigateHandler;
   embedded?: boolean;
 }
 
 const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function TravelSummary(
-  { mode, activePulse, highlighted, activeTab, onTabChange, travelRows, onNavigate, embedded = false },
+  { activeTab, onTabChange, travelRows, disruption, onNavigate, embedded = false },
   ref,
 ) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     setExpandedRow(null);
-  }, [mode, activeTab]);
+  }, [activeTab]);
 
   const activeRows: TravelRow[] =
-    mode === "roads" ? travelRows.roads :
-    mode === "air" ? travelRows.air :
     activeTab === "Buses" ? travelRows.buses :
     activeTab === "Trains" ? travelRows.trains :
     activeTab === "Roads" ? travelRows.roads :
     travelRows.nearby;
-  const visibleRows = mode === "transport" && activeTab === "Buses" ? activeRows.slice(0, 4) : activeRows;
-
-  const title = mode === "roads" ? "Roads now" : mode === "air" ? "Air quality now" : "Travel now";
-  const sentence = mode === "roads"
-    ? "Watch the main approaches and central corridors. No major road closures."
-    : mode === "air"
-      ? "Current rating, pollen and practical guidance for the local area."
-      : activeTab === "Buses"
-        ? "Live bus conditions with next arrivals and service state."
-        : activeTab === "Trains"
-          ? "Rail departures with on-time and delay state."
-          : activeTab === "Roads"
-            ? "Compact road conditions without leaving the transport surface."
-            : "Most services are running. Expect bus delays around the main corridor.";
-  const active = activePulse === "transport" || activePulse === "roads" || activePulse === "air";
+  const visibleRows = activeTab === "Buses" ? activeRows.slice(0, 4) : activeRows;
+  const roadSnapshot = travelRows.roads[0];
+  const sentence =
+    activeTab === "Buses"
+      ? "Live bus conditions with next arrivals and service state."
+      : activeTab === "Trains"
+        ? "Rail departures with on-time and delay state."
+        : activeTab === "Roads"
+          ? "Road conditions across the main city approaches."
+          : "Most services are running. Bus delays are building around Gloucester Road and city-centre traffic is slightly slower than usual.";
 
   return (
     <motion.section
       ref={ref}
-      className={`${embedded ? "" : "panel "}travel-summary ${embedded ? "embedded" : ""} ${active ? "module-active" : ""} ${highlighted ? "module-focus" : ""}`.trim()}
+      className={`${embedded ? "" : "panel "}travel-summary ${embedded ? "embedded" : ""}`.trim()}
       tabIndex={-1}
       layout
       transition={MOTION_QUICK}
     >
       <div className="section-title-row">
-        <h2>{title}</h2>
+        <h2>Getting around</h2>
         <button className="text-link" onClick={() => onNavigate("/travel")}>
           Open Travel
         </button>
       </div>
       <p className="status-sentence">{sentence}</p>
-      {mode === "transport" ? (
-        <SegmentedTabs
-          tabs={TODAY_TRAVEL_TABS}
-          active={activeTab}
-          onChange={onTabChange}
-        />
+      {activeTab === "Nearby" ? (
+        <div className="travel-overview-lines" aria-label="Travel overview">
+          <div className="travel-overview-line">
+            <Bus size={16} className="tone-amber" />
+            <span>
+              <strong>Public transport</strong>
+              <small>{disruption.metadata}. {disruption.headline}</small>
+            </span>
+          </div>
+          {roadSnapshot ? (
+            <div className="travel-overview-line">
+              <Car size={16} className={`tone-${roadSnapshot.tone}`} />
+              <span>
+                <strong>Roads</strong>
+                <small>{roadSnapshot.title}: {roadSnapshot.secondary ?? roadSnapshot.note}</small>
+              </span>
+            </div>
+          ) : null}
+        </div>
       ) : null}
+      <SegmentedTabs
+        tabs={TODAY_TRAVEL_TABS}
+        active={activeTab}
+        onChange={onTabChange}
+      />
       <motion.div className="travel-tab-panel" layout>
         <AnimatePresence mode="wait" initial={false}>
-          <ListBox
+          <motion.div
             key={`${mode}-${activeTab}`}
-            className="cn-service-list"
-            aria-label={`${title} services`}
-            onAction={(key) => setExpandedRow((value) => (value === String(key) ? null : String(key)))}
+            className="travel-rows travel-rows-list"
+            initial={{ opacity: 0, y: 3 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 3 }}
+            transition={MOTION_SWAP}
+            layout
           >
             {visibleRows.map((row) => {
               const expanded = expandedRow === row.id;
               return (
-                <ListBox.Item
+                <motion.div
                   key={row.id}
-                  id={row.id}
-                  textValue={`${row.title} ${row.meta}`}
                   className={`travel-row-shell ${expanded ? "expanded" : ""}`}
+                  layout
+                  transition={MOTION_QUICK}
                 >
-                  <div
+                  <motion.button
                     className={`travel-row-detail ${expanded ? "expanded" : ""}`}
+                    onClick={() => setExpandedRow((value) => (value === row.id ? null : row.id))}
                     aria-expanded={expanded}
+                    whileHover={{ y: -1 }}
+                    transition={MOTION_QUICK}
                   >
                     <row.icon size={18} className={`tone-${row.tone}`} />
                     <span className="travel-row-copy">
@@ -1342,7 +1347,7 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
                       <small>{row.statusLabel ?? getSeverityLabel(row.severity)}</small>
                     </em>
                     <ChevronRight size={16} className="travel-row-chevron" />
-                  </div>
+                  </motion.button>
                   <AnimatePresence initial={false}>
                     {expanded ? (
                       <motion.div
@@ -1362,17 +1367,17 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
                       </motion.div>
                     ) : null}
                   </AnimatePresence>
-                </ListBox.Item>
+                </motion.div>
               );
             })}
             {mode === "transport" && activeTab === "Buses" ? (
               <div className="travel-list-footer">
-                <Button className="text-link inline-link" onPress={() => onNavigate("/travel")}>
+                <button className="text-link inline-link" onClick={() => onNavigate("/travel")}>
                   View all bus services
-                </Button>
+                </button>
               </div>
             ) : null}
-          </ListBox>
+          </motion.div>
         </AnimatePresence>
       </motion.div>
     </motion.section>
@@ -1380,16 +1385,15 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
 });
 
 interface WeatherSummaryProps {
-  active: boolean;
-  highlighted: boolean;
   snapshot: WeatherSnapshot;
   hours: HourlyForecastHour[];
+  airQualityNote: string | null;
   onNavigate: NavigateHandler;
   embedded?: boolean;
 }
 
 const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(function WeatherSummary(
-  { active, highlighted, snapshot, hours, onNavigate, embedded = false },
+  { snapshot, hours, airQualityNote, onNavigate, embedded = false },
   ref,
 ) {
   const [selectedHour, setSelectedHour] = useState<HourlyForecastHour>(hours[0] ?? hourlyForecast[0]!);
@@ -1401,13 +1405,13 @@ const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(functi
   return (
     <motion.section
       ref={ref}
-      className={`${embedded ? "" : "panel "}weather-summary ${embedded ? "embedded" : ""} ${active ? "module-active" : ""} ${highlighted ? "module-focus" : ""}`.trim()}
+      className={`${embedded ? "" : "panel "}weather-summary ${embedded ? "embedded" : ""}`.trim()}
       tabIndex={-1}
       layout
       transition={MOTION_QUICK}
     >
       <div className="section-title-row">
-        <h2>Today's weather</h2>
+        <h2>Weather now</h2>
         <button className="text-link" onClick={() => onNavigate("/weather")}>
           View forecast
         </button>
@@ -1419,6 +1423,7 @@ const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(functi
           <span>{selectedHour.note}</span>
         </div>
       </div>
+      <p className="weather-practical-line">{getWeatherPracticalLine(snapshot)}</p>
       <ForecastStrip
         hours={hours.slice(0, 6)}
         compact
@@ -1433,6 +1438,7 @@ const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(functi
           <span>{selectedHour.id === WEATHER_HIGHLIGHT_HOUR ? snapshot.dryAdvice : `${selectedHour.condition} with ${selectedHour.rain}% rain risk and feels like ${selectedHour.feelsLike}°.`}</span>
         </div>
       </div>
+      {airQualityNote ? <p className="weather-support-line">{airQualityNote}</p> : null}
     </motion.section>
   );
 });
@@ -1752,10 +1758,12 @@ interface EventRowProps {
 
 function EventRow({ event, saved, onToggleSaved, onOpenDrawer }: EventRowProps) {
   return (
-    <div className="cn-event-row">
-      <Button
+    <div className="event-row">
+      <motion.button
         className="event-row-main"
-        onPress={() => onOpenDrawer(event)}
+        onClick={() => onOpenDrawer(event)}
+        whileHover={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+        transition={MOTION_QUICK}
       >
         <motion.img layoutId={`drawer-image-${event.id}`} src={event.image} alt="" />
         <span className="event-row-copy">
@@ -1772,7 +1780,7 @@ function EventRow({ event, saved, onToggleSaved, onOpenDrawer }: EventRowProps) 
             </>
           )}
         </span>
-      </Button>
+      </motion.button>
       <SaveButton item={event} saved={saved} onToggleSaved={onToggleSaved} />
     </div>
   );
@@ -1808,9 +1816,9 @@ interface PrimaryButtonProps {
 
 function PrimaryButton({ children, onClick }: PrimaryButtonProps) {
   return (
-    <Button className="primary-button" onPress={onClick}>
+    <motion.button className="primary-button" onClick={onClick} whileTap={{ scale: 0.98 }} transition={MOTION_QUICK}>
       {children}
-    </Button>
+    </motion.button>
   );
 }
 
@@ -1822,16 +1830,16 @@ interface SaveButtonProps {
 
 function SaveButton({ item, saved, onToggleSaved }: SaveButtonProps) {
   return (
-    <Button
+    <button
       className={`save-button ${saved ? "saved" : ""}`}
-      isIconOnly
-      onPress={() => {
+      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
         onToggleSaved(item);
       }}
       aria-label={saved ? `Unsave ${item.title}` : `Save ${item.title}`}
     >
       {saved ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
-    </Button>
+    </button>
   );
 }
 
@@ -1845,43 +1853,60 @@ interface DetailDrawerProps {
 
 function DetailDrawer({ item, cityName, saved, onToggleSaved, onClose }: DetailDrawerProps) {
   return (
-    <Drawer isOpen={Boolean(item)} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <Drawer.Backdrop className="drawer-backdrop" isDismissable>
+    <Dialog.Root open={Boolean(item)} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <AnimatePresence>
         {item ? (
-          <Drawer.Content className="detail-drawer" placement="right">
-            <Drawer.Dialog>
-                <Drawer.Header className="drawer-topbar">
-                  <Drawer.Heading className="sr-only">{item.title}</Drawer.Heading>
-                  <Drawer.CloseTrigger className="drawer-close" aria-label="Close details">
-                    <X size={18} />
-                  </Drawer.CloseTrigger>
-                </Drawer.Header>
+          <Dialog.Portal forceMount>
+            <Dialog.Overlay asChild>
+              <motion.div
+                className="drawer-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={SHEET_TRANSITION}
+              />
+            </Dialog.Overlay>
+            <Dialog.Content asChild>
+              <motion.aside
+                className="detail-drawer"
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 24 }}
+                transition={SHEET_TRANSITION}
+              >
+                <div className="drawer-topbar">
+                  <Dialog.Title className="sr-only">{item.title}</Dialog.Title>
+                  <Dialog.Close asChild>
+                    <button className="drawer-close" aria-label="Close details">
+                      <X size={18} />
+                    </button>
+                  </Dialog.Close>
+                </div>
                 <motion.img layoutId={`drawer-image-${item.id}`} src={item.image} alt="" />
-                <Drawer.Body className="drawer-body">
-                  <span className="event-meta">{item.type === "event" ? item.date : item.category}</span>
-                  <h2>{item.title}</h2>
-                  <p>{item.description}</p>
-                  <div className="drawer-facts">
-                    <span><MapPin size={15} /> {item.type === "event" ? item.venue : item.neighbourhood}</span>
-                    <span><CalendarDays size={15} /> {item.type === "event" ? item.time : item.hours}</span>
-                    <span><Compass size={15} /> {item.type === "event" ? `${item.distance} from central ${cityName}` : `${item.neighbourhood} neighbourhood`}</span>
-                  </div>
-                  <div className="drawer-ticket-placeholder">
-                    <strong>{item.type === "event" ? item.ticketInfo : "Visit info"}</strong>
-                    <span>{item.type === "event" ? item.availability : "Website placeholder until live venue links are connected."}</span>
-                  </div>
-                  <div className="button-row">
-                    <PrimaryButton onClick={() => {}}>
-                      <ArrowUpRight size={15} /> Tickets / website
-                    </PrimaryButton>
-                    <SaveButton item={item} saved={saved} onToggleSaved={onToggleSaved} />
-                  </div>
-                </Drawer.Body>
-            </Drawer.Dialog>
-          </Drawer.Content>
+                <span className="event-meta">{item.type === "event" ? item.date : item.category}</span>
+                <h2>{item.title}</h2>
+                <p>{item.description}</p>
+                <div className="drawer-facts">
+                  <span><MapPin size={15} /> {item.type === "event" ? item.venue : item.neighbourhood}</span>
+                  <span><CalendarDays size={15} /> {item.type === "event" ? item.time : item.hours}</span>
+                  <span><Compass size={15} /> {item.type === "event" ? `${item.distance} from central ${cityName}` : `${item.neighbourhood} neighbourhood`}</span>
+                </div>
+                <div className="drawer-ticket-placeholder">
+                  <strong>{item.type === "event" ? item.ticketInfo : "Visit info"}</strong>
+                  <span>{item.type === "event" ? item.availability : "Website placeholder until live venue links are connected."}</span>
+                </div>
+                <div className="button-row">
+                  <PrimaryButton onClick={() => {}}>
+                    <ArrowUpRight size={15} /> Tickets / website
+                  </PrimaryButton>
+                  <SaveButton item={item} saved={saved} onToggleSaved={onToggleSaved} />
+                </div>
+              </motion.aside>
+            </Dialog.Content>
+          </Dialog.Portal>
         ) : null}
-      </Drawer.Backdrop>
-    </Drawer>
+      </AnimatePresence>
+    </Dialog.Root>
   );
 }
 
@@ -1893,23 +1918,19 @@ interface SegmentedTabsProps<T extends string> {
 
 function SegmentedTabs<T extends string>({ tabs, active, onChange }: SegmentedTabsProps<T>) {
   return (
-    <Tabs
-      selectedKey={active}
-      onSelectionChange={(key) => onChange(key as T)}
-      className="cn-segmented-tabs"
-      aria-label="Section tabs"
-    >
-      <Tabs.ListContainer className="cn-segmented-container">
-        <Tabs.List className="cn-segmented-list" items={tabs.map((tab) => ({ id: tab, label: tab }))}>
-          {(tab) => (
-            <Tabs.Tab id={tab.id} className="cn-segmented-tab">
-              {tab.label}
-              <Tabs.Indicator className="cn-segmented-indicator" />
-            </Tabs.Tab>
-          )}
-        </Tabs.List>
-      </Tabs.ListContainer>
-    </Tabs>
+    <div className="segmented-tabs" role="tablist">
+      {tabs.map((tab) => (
+        <button
+          key={tab}
+          role="tab"
+          aria-selected={active === tab}
+          className={active === tab ? "active" : ""}
+          onClick={() => onChange(tab)}
+        >
+          {tab}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -1931,8 +1952,8 @@ function ForecastStrip({
   return (
     <div className={`forecast-strip ${compact ? "compact" : ""} ${continuous ? "continuous" : ""}`}>
       {hours.map((hour) => (
-        <HeroTooltip key={hour.id} delay={80}>
-          <HeroTooltip.Trigger>
+        <Tooltip.Root key={hour.id}>
+          <Tooltip.Trigger asChild>
             <button
               className={`${selected === hour.id ? "selected" : ""} ${hour.id === WEATHER_HIGHLIGHT_HOUR ? "current" : ""}`.trim()}
               onClick={() => onSelect?.(hour)}
@@ -1942,14 +1963,16 @@ function ForecastStrip({
               <strong>{hour.temp}°</strong>
               <small>{hour.rain}%</small>
             </button>
-          </HeroTooltip.Trigger>
-          <HeroTooltip.Content className="hour-tooltip" offset={8}>
-            <strong>{hour.condition}</strong>
-            <span>{hour.rain}% rain</span>
-            <span>{hour.wind}</span>
-            <span>Feels like {hour.feelsLike}°</span>
-          </HeroTooltip.Content>
-        </HeroTooltip>
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content className="hour-tooltip" sideOffset={8}>
+              <strong>{hour.condition}</strong>
+              <span>{hour.rain}% rain</span>
+              <span>{hour.wind}</span>
+              <span>Feels like {hour.feelsLike}°</span>
+            </Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
       ))}
     </div>
   );
