@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { createRoot } from "react-dom/client";
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "motion/react";
 import {
@@ -28,6 +29,7 @@ import {
   Umbrella,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import {
   cityOptions,
   dailyForecast,
@@ -38,16 +40,39 @@ import {
   stops,
   trainDepartures,
   travelUpdates,
-} from "./mockData.js";
+} from "./mockData";
+import type {
+  CityOption,
+  CityPulseItem,
+  DrawerItem,
+  EventItem,
+  ExploreMode,
+  FocusTarget,
+  HourlyForecastHour,
+  PlaceItem,
+  PulseIconKey,
+  PulseId,
+  RoutePath,
+  SavedItem,
+  SavedState,
+  Tone,
+  TransportDeparture,
+  TransportStop,
+  TravelMode,
+  TravelPageTab,
+  TravelRow,
+  TravelRowsByMode,
+  TravelSummaryTab,
+} from "./types";
 import "./styles.css";
 
-const MOTION_EASE = [0.22, 1, 0.36, 1];
+const MOTION_EASE = [0.22, 1, 0.36, 1] as const;
 const MOTION_QUICK = { duration: 0.2, ease: MOTION_EASE };
 const MOTION_SWAP = { duration: 0.18, ease: MOTION_EASE };
 const SHEET_TRANSITION = { duration: 0.22, ease: MOTION_EASE };
 const FOCUS_TIMEOUT_MS = 900;
 
-const navItems = [
+const navItems: Array<{ label: string; path: RoutePath }> = [
   { label: "Today", path: "/today" },
   { label: "Weather", path: "/weather" },
   { label: "Explore", path: "/explore" },
@@ -55,7 +80,11 @@ const navItems = [
   { label: "Saved", path: "/saved" },
 ];
 
-const iconMap = {
+const TODAY_TRAVEL_TABS: readonly TravelSummaryTab[] = ["Nearby", "Buses", "Trains", "Roads"];
+const TRAVEL_PAGE_TABS: readonly TravelPageTab[] = ["Nearby", "Bus", "Train", "Road"];
+const EXPLORE_TABS: readonly ExploreMode[] = ["Events", "Places"];
+
+const iconMap: Record<PulseIconKey, LucideIcon> = {
   bus: Bus,
   car: Car,
   rain: CloudRain,
@@ -71,7 +100,7 @@ const iconMap = {
   umbrella: Umbrella,
 };
 
-const travelRows = {
+const travelRows: TravelRowsByMode = {
   nearby: [
     {
       id: "near-temple-meads",
@@ -79,6 +108,7 @@ const travelRows = {
       title: "Temple Meads Station",
       meta: "Train services",
       value: "3 min",
+      severity: "good",
       tone: "green",
       summary: "Station concourse and platforms are running normally.",
       departure: "Next departure: Bath Spa at 14:18 from platform 4",
@@ -90,6 +120,7 @@ const travelRows = {
       title: "Temple Gate",
       meta: "Routes 70, 72, M1",
       value: "1 min",
+      severity: "good",
       tone: "green",
       summary: "Closest stop for central bus services.",
       departure: "Next departure: Route 70 in 3 min",
@@ -101,6 +132,7 @@ const travelRows = {
       title: "Redcliffe Way",
       meta: "Routes 8, 70, 72",
       value: "4 min",
+      severity: "minor",
       tone: "amber",
       summary: "Useful fallback stop for city routes.",
       departure: "Next departure: Route 72 in 6 min",
@@ -114,6 +146,7 @@ const travelRows = {
       title: "70 to UWE Frenchay",
       meta: "Gloucester Road delays",
       value: "6 min",
+      severity: "minor",
       tone: "amber",
       summary: "Minor delay northbound after roadworks.",
       departure: "Next departure: 14:12",
@@ -125,6 +158,7 @@ const travelRows = {
       title: "72 to Temple Meads",
       meta: "Short holds near Zetland Road",
       value: "9 min",
+      severity: "minor",
       tone: "amber",
       summary: "Service is running, but slower than usual.",
       departure: "Next departure: 14:15",
@@ -136,6 +170,7 @@ const travelRows = {
       title: "8 to Clifton",
       meta: "Normal service",
       value: "4 min",
+      severity: "good",
       tone: "green",
       summary: "No major disruption reported.",
       departure: "Next departure: 14:09",
@@ -147,6 +182,7 @@ const travelRows = {
       title: "M1 to Cribbs Causeway",
       meta: "Normal service",
       value: "7 min",
+      severity: "good",
       tone: "green",
       summary: "Metrobus is close to timetable.",
       departure: "Next departure: 14:13",
@@ -160,6 +196,7 @@ const travelRows = {
       title: "Bath Spa",
       meta: "Temple Meads platform 4",
       value: "14:18",
+      severity: "good",
       tone: "green",
       summary: "Reported on time.",
       departure: "Boarding in 7 min",
@@ -171,6 +208,7 @@ const travelRows = {
       title: "Cardiff Central",
       meta: "Temple Meads platform 7",
       value: "14:27",
+      severity: "good",
       tone: "green",
       summary: "Reported on time.",
       departure: "Boarding in 16 min",
@@ -182,6 +220,7 @@ const travelRows = {
       title: "Weston-super-Mare",
       meta: "Temple Meads platform 2",
       value: "14:40",
+      severity: "minor",
       tone: "amber",
       summary: "Minor delay possible.",
       departure: "Boarding in 29 min",
@@ -195,6 +234,7 @@ const travelRows = {
       title: "A38",
       meta: "Gloucester Road slow northbound",
       value: "Busy",
+      severity: "warning",
       tone: "amber",
       summary: "Expect slower movement around Zetland Road.",
       departure: "Average delay: 6-8 min",
@@ -206,6 +246,7 @@ const travelRows = {
       title: "Central bus lanes",
       meta: "Busiest through Broadmead",
       value: "Slow",
+      severity: "warning",
       tone: "amber",
       summary: "Traffic is moving, but slowly.",
       departure: "Average delay: 4 min",
@@ -217,6 +258,7 @@ const travelRows = {
       title: "M32",
       meta: "Main approach clear",
       value: "Clear",
+      severity: "good",
       tone: "green",
       summary: "No major queues reported into the city.",
       departure: "Approach time is normal",
@@ -230,6 +272,7 @@ const travelRows = {
       title: "Central Bristol",
       meta: "Low pollution, comfortable walking",
       value: "Good",
+      severity: "good",
       tone: "green",
       summary: "No unusual air quality alerts.",
       departure: "AQI 28",
@@ -241,6 +284,7 @@ const travelRows = {
       title: "Harbourside",
       meta: "Breezy after showers",
       value: "Good",
+      severity: "good",
       tone: "green",
       summary: "Good conditions for short outdoor plans.",
       departure: "AQI 24",
@@ -252,6 +296,7 @@ const travelRows = {
       title: "Cycling note",
       meta: "Wet roads, clean air",
       value: "Fine",
+      severity: "good",
       tone: "green",
       summary: "Visibility is good; watch wet surfaces.",
       departure: "AQI 26",
@@ -260,17 +305,21 @@ const travelRows = {
   ],
 };
 
-function getRoute() {
+type NavigateHandler = (path: RoutePath) => void;
+type ToggleSavedHandler = (item: SavedItem) => void;
+type SetSavedState = Dispatch<SetStateAction<SavedState>>;
+
+function getRoute(): RoutePath {
   const hashPath = window.location.hash.replace(/^#/, "");
   if (!hashPath) return "/today";
-  return navItems.some((item) => item.path === hashPath) ? hashPath : "/today";
+  return navItems.some((item) => item.path === hashPath) ? (hashPath as RoutePath) : "/today";
 }
 
-function useLocalStorageState(key, fallback) {
-  const [value, setValue] = useState(() => {
+function useLocalStorageState<T>(key: string, fallback: T): [T, Dispatch<SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(() => {
     try {
       const stored = window.localStorage.getItem(key);
-      return stored ? JSON.parse(stored) : fallback;
+      return stored ? (JSON.parse(stored) as T) : fallback;
     } catch {
       return fallback;
     }
@@ -283,13 +332,14 @@ function useLocalStorageState(key, fallback) {
   return [value, setValue];
 }
 
-function shouldScrollIntoView(element) {
+function shouldScrollIntoView(element: Element | null): boolean {
   if (!element) return false;
   const rect = element.getBoundingClientRect();
   return rect.top < 88 || rect.bottom > window.innerHeight - 88;
 }
 
-function scrollIntoComfortView(element) {
+function scrollIntoComfortView(element: HTMLElement | null): void {
+  if (!element) return;
   if (!shouldScrollIntoView(element)) return;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   element.scrollIntoView({
@@ -300,9 +350,9 @@ function scrollIntoComfortView(element) {
 
 function App() {
   const [route, setRoute] = useState(getRoute);
-  const [city, setCity] = useLocalStorageState("citynow-city", cityOptions[0]);
-  const [savedIds, setSavedIds] = useLocalStorageState("citynow-saved", []);
-  const [drawerItem, setDrawerItem] = useState(null);
+  const [city, setCity] = useLocalStorageState<CityOption>("citynow-city", cityOptions[0]!);
+  const [savedIds, setSavedIds] = useLocalStorageState<SavedState>("citynow-saved", []);
+  const [drawerItem, setDrawerItem] = useState<DrawerItem>(null);
 
   useEffect(() => {
     const syncRoute = () => setRoute(getRoute());
@@ -313,19 +363,19 @@ function App() {
     return () => window.removeEventListener("hashchange", syncRoute);
   }, []);
 
-  const navigate = (path) => {
+  const navigate: NavigateHandler = (path) => {
     window.location.hash = path;
     setRoute(path);
-    window.scrollTo({ top: 0, behavior: "instant" });
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   };
 
-  const toggleSaved = (item) => {
+  const toggleSaved: ToggleSavedHandler = (item) => {
     setSavedIds((ids) =>
       ids.includes(item.id) ? ids.filter((id) => id !== item.id) : [...ids, item.id],
     );
   };
 
-  const savedItems = useMemo(() => {
+  const savedItems = useMemo<SavedItem[]>(() => {
     const allItems = [...events, ...places];
     return allItems.filter((item) => savedIds.includes(item.id));
   }, [savedIds]);
@@ -343,7 +393,7 @@ function App() {
                   onNavigate={navigate}
                   savedIds={savedIds}
                   onToggleSaved={toggleSaved}
-                  onOpenDrawer={setDrawerItem}
+                  onOpenDrawer={(item) => setDrawerItem(item)}
                 />
               )}
               {route === "/weather" && <WeatherPage city={city} />}
@@ -352,7 +402,7 @@ function App() {
                   city={city}
                   savedIds={savedIds}
                   onToggleSaved={toggleSaved}
-                  onOpenDrawer={setDrawerItem}
+                  onOpenDrawer={(item) => setDrawerItem(item)}
                 />
               )}
               {route === "/travel" && <TravelPage city={city} />}
@@ -362,7 +412,7 @@ function App() {
                   savedIds={savedIds}
                   onToggleSaved={toggleSaved}
                   onNavigate={navigate}
-                  onOpenDrawer={setDrawerItem}
+                  onOpenDrawer={(item) => setDrawerItem(item)}
                 />
               )}
             </main>
@@ -379,7 +429,14 @@ function App() {
   );
 }
 
-function TopNav({ route, city, onCityChange, onNavigate }) {
+interface TopNavProps {
+  route: RoutePath;
+  city: CityOption;
+  onCityChange: Dispatch<SetStateAction<CityOption>>;
+  onNavigate: NavigateHandler;
+}
+
+function TopNav({ route, city, onCityChange, onNavigate }: TopNavProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -437,17 +494,25 @@ function TopNav({ route, city, onCityChange, onNavigate }) {
   );
 }
 
-function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }) {
-  const [selectedPulse, setSelectedPulse] = useState(pulseItems[0].id);
-  const [travelTab, setTravelTab] = useState("Nearby");
-  const [travelMode, setTravelMode] = useState("transport");
-  const [focusTarget, setFocusTarget] = useState(null);
-  const travelRef = useRef(null);
-  const weatherRef = useRef(null);
-  const featured = events[0];
+interface TodayPageProps {
+  city: CityOption;
+  onNavigate: NavigateHandler;
+  savedIds: SavedState;
+  onToggleSaved: ToggleSavedHandler;
+  onOpenDrawer: (item: SavedItem) => void;
+}
+
+function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }: TodayPageProps) {
+  const [selectedPulse, setSelectedPulse] = useState<PulseId>(pulseItems[0]!.id);
+  const [travelTab, setTravelTab] = useState<TravelSummaryTab>("Nearby");
+  const [travelMode, setTravelMode] = useState<TravelMode>("transport");
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
+  const travelRef = useRef<HTMLElement | null>(null);
+  const weatherRef = useRef<HTMLElement | null>(null);
+  const featured = events[0]!;
   const otherEvents = events.slice(1, 4);
 
-  const focusModule = (target) => {
+  const focusModule = (target: FocusTarget) => {
     setFocusTarget(target);
     const ref = target === "weather" ? weatherRef : travelRef;
     window.setTimeout(() => {
@@ -457,7 +522,7 @@ function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }) 
     window.setTimeout(() => setFocusTarget(null), FOCUS_TIMEOUT_MS);
   };
 
-  const handlePulseSelect = (item) => {
+  const handlePulseSelect = (item: CityPulseItem) => {
     setSelectedPulse(item.id);
     if (item.id === "transport") {
       setTravelMode("transport");
@@ -564,7 +629,11 @@ function getGreeting() {
   return "Good evening";
 }
 
-function CurrentWeatherCard({ onClick }) {
+interface CurrentWeatherCardProps {
+  onClick: () => void;
+}
+
+function CurrentWeatherCard({ onClick }: CurrentWeatherCardProps) {
   return (
     <button className="weather-mini" onClick={onClick}>
       <CloudRain className="weather-cloud" size={42} />
@@ -575,7 +644,13 @@ function CurrentWeatherCard({ onClick }) {
   );
 }
 
-function PulseStatusCard({ item, selected, onClick }) {
+interface PulseStatusCardProps {
+  item: CityPulseItem;
+  selected: boolean;
+  onClick: () => void;
+}
+
+function PulseStatusCard({ item, selected, onClick }: PulseStatusCardProps) {
   const Icon = iconMap[item.icon];
   return (
     <motion.button
@@ -600,7 +675,11 @@ function PulseStatusCard({ item, selected, onClick }) {
   );
 }
 
-function DisruptionAlert({ onNavigate }) {
+interface DisruptionAlertProps {
+  onNavigate: NavigateHandler;
+}
+
+function DisruptionAlert({ onNavigate }: DisruptionAlertProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -645,17 +724,26 @@ function DisruptionAlert({ onNavigate }) {
   );
 }
 
-const TravelSummary = React.forwardRef(function TravelSummary(
+interface TravelSummaryProps {
+  mode: TravelMode;
+  activePulse: PulseId;
+  highlighted: boolean;
+  activeTab: TravelSummaryTab;
+  onTabChange: Dispatch<SetStateAction<TravelSummaryTab>>;
+  onNavigate: NavigateHandler;
+}
+
+const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function TravelSummary(
   { mode, activePulse, highlighted, activeTab, onTabChange, onNavigate },
   ref,
 ) {
-  const [expandedRow, setExpandedRow] = useState(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     setExpandedRow(null);
   }, [mode, activeTab]);
 
-  const activeRows =
+  const activeRows: TravelRow[] =
     mode === "roads" ? travelRows.roads :
     mode === "air" ? travelRows.air :
     activeTab === "Buses" ? travelRows.buses :
@@ -688,7 +776,7 @@ const TravelSummary = React.forwardRef(function TravelSummary(
       <p className="status-sentence">{sentence}</p>
       {mode === "transport" ? (
         <SegmentedTabs
-          tabs={["Nearby", "Buses", "Trains", "Roads"]}
+          tabs={TODAY_TRAVEL_TABS}
           active={activeTab}
           onChange={onTabChange}
         />
@@ -757,7 +845,16 @@ const TravelSummary = React.forwardRef(function TravelSummary(
   );
 });
 
-const WeatherSummary = React.forwardRef(function WeatherSummary({ active, highlighted, onNavigate }, ref) {
+interface WeatherSummaryProps {
+  active: boolean;
+  highlighted: boolean;
+  onNavigate: NavigateHandler;
+}
+
+const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(function WeatherSummary(
+  { active, highlighted, onNavigate },
+  ref,
+) {
   return (
     <motion.section
       ref={ref}
@@ -791,8 +888,12 @@ const WeatherSummary = React.forwardRef(function WeatherSummary({ active, highli
   );
 });
 
-function WeatherPage({ city }) {
-  const [selectedHour, setSelectedHour] = useState(hourlyForecast[0]);
+interface WeatherPageProps {
+  city: CityOption;
+}
+
+function WeatherPage({ city }: WeatherPageProps) {
+  const [selectedHour, setSelectedHour] = useState<HourlyForecastHour>(hourlyForecast[0]!);
 
   return (
     <div className="page-content fade-in">
@@ -844,9 +945,16 @@ function WeatherPage({ city }) {
   );
 }
 
-function ExplorePage({ city, savedIds, onToggleSaved, onOpenDrawer }) {
-  const [mode, setMode] = useState("Events");
-  const featured = mode === "Events" ? events.slice(0, 3) : places.slice(0, 3);
+interface ExplorePageProps {
+  city: CityOption;
+  savedIds: SavedState;
+  onToggleSaved: ToggleSavedHandler;
+  onOpenDrawer: (item: SavedItem) => void;
+}
+
+function ExplorePage({ city, savedIds, onToggleSaved, onOpenDrawer }: ExplorePageProps) {
+  const [mode, setMode] = useState<ExploreMode>("Events");
+  const featured: SavedItem[] = mode === "Events" ? events.slice(0, 3) : places.slice(0, 3);
 
   return (
     <div className="page-content fade-in">
@@ -854,7 +962,7 @@ function ExplorePage({ city, savedIds, onToggleSaved, onOpenDrawer }) {
         <h1>Explore {city.name}</h1>
         <p>Events, neighbourhoods and practical places worth knowing.</p>
       </section>
-      <SegmentedTabs tabs={["Events", "Places"]} active={mode} onChange={setMode} />
+      <SegmentedTabs tabs={EXPLORE_TABS} active={mode} onChange={setMode} />
       <section className="explore-card-grid">
         {featured.map((item) => (
           <VisualCard
@@ -893,9 +1001,13 @@ function ExplorePage({ city, savedIds, onToggleSaved, onOpenDrawer }) {
   );
 }
 
-function TravelPage({ city }) {
-  const [tab, setTab] = useState("Nearby");
-  const [selectedStop, setSelectedStop] = useState(stops[1]);
+interface TravelPageProps {
+  city: CityOption;
+}
+
+function TravelPage({ city }: TravelPageProps) {
+  const [tab, setTab] = useState<TravelPageTab>("Nearby");
+  const [selectedStop, setSelectedStop] = useState<TransportStop>(stops[1]!);
 
   return (
     <div className="page-content fade-in">
@@ -906,7 +1018,7 @@ function TravelPage({ city }) {
         </div>
         <span className="micro-label">Demo transport data</span>
       </section>
-      <SegmentedTabs tabs={["Nearby", "Bus", "Train", "Road"]} active={tab} onChange={setTab} />
+      <SegmentedTabs tabs={TRAVEL_PAGE_TABS} active={tab} onChange={setTab} />
       <section className="travel-layout">
         <div className="panel stop-list">
           <div className="section-title-row">
@@ -964,7 +1076,15 @@ function TravelPage({ city }) {
   );
 }
 
-function SavedPage({ savedItems, savedIds, onToggleSaved, onNavigate, onOpenDrawer }) {
+interface SavedPageProps {
+  savedItems: SavedItem[];
+  savedIds: SavedState;
+  onToggleSaved: ToggleSavedHandler;
+  onNavigate: NavigateHandler;
+  onOpenDrawer: (item: SavedItem) => void;
+}
+
+function SavedPage({ savedItems, savedIds, onToggleSaved, onNavigate, onOpenDrawer }: SavedPageProps) {
   const savedEvents = savedItems.filter((item) => item.type === "event");
   const savedPlaces = savedItems.filter((item) => item.type === "place");
 
@@ -1003,7 +1123,15 @@ function SavedPage({ savedItems, savedIds, onToggleSaved, onNavigate, onOpenDraw
   );
 }
 
-function SavedGroup({ title, items, savedIds, onToggleSaved, onOpenDrawer }) {
+interface SavedGroupProps {
+  title: string;
+  items: SavedItem[];
+  savedIds: SavedState;
+  onToggleSaved: ToggleSavedHandler;
+  onOpenDrawer: (item: SavedItem) => void;
+}
+
+function SavedGroup({ title, items, savedIds, onToggleSaved, onOpenDrawer }: SavedGroupProps) {
   return (
     <section className="panel side-list">
       <h2>{title}</h2>
@@ -1021,7 +1149,14 @@ function SavedGroup({ title, items, savedIds, onToggleSaved, onOpenDrawer }) {
   );
 }
 
-function FeaturedEvent({ event, saved, onToggleSaved, onOpenDrawer }) {
+interface FeaturedEventProps {
+  event: EventItem;
+  saved: boolean;
+  onToggleSaved: ToggleSavedHandler;
+  onOpenDrawer: (item: SavedItem) => void;
+}
+
+function FeaturedEvent({ event, saved, onToggleSaved, onOpenDrawer }: FeaturedEventProps) {
   return (
     <article className="featured-event panel">
       <motion.button
@@ -1047,7 +1182,14 @@ function FeaturedEvent({ event, saved, onToggleSaved, onOpenDrawer }) {
   );
 }
 
-function EventRow({ event, saved, onToggleSaved, onOpenDrawer }) {
+interface EventRowProps {
+  event: SavedItem;
+  saved: boolean;
+  onToggleSaved: ToggleSavedHandler;
+  onOpenDrawer: (item: SavedItem) => void;
+}
+
+function EventRow({ event, saved, onToggleSaved, onOpenDrawer }: EventRowProps) {
   return (
     <div className="event-row">
       <motion.button
@@ -1067,7 +1209,14 @@ function EventRow({ event, saved, onToggleSaved, onOpenDrawer }) {
   );
 }
 
-function VisualCard({ item, saved, onToggleSaved, onOpenDrawer }) {
+interface VisualCardProps {
+  item: SavedItem;
+  saved: boolean;
+  onToggleSaved: ToggleSavedHandler;
+  onOpenDrawer: (item: SavedItem) => void;
+}
+
+function VisualCard({ item, saved, onToggleSaved, onOpenDrawer }: VisualCardProps) {
   return (
     <article className="visual-card">
       <img src={item.image} alt="" />
@@ -1083,7 +1232,12 @@ function VisualCard({ item, saved, onToggleSaved, onOpenDrawer }) {
   );
 }
 
-function PrimaryButton({ children, onClick }) {
+interface PrimaryButtonProps {
+  children: ReactNode;
+  onClick: () => void;
+}
+
+function PrimaryButton({ children, onClick }: PrimaryButtonProps) {
   return (
     <motion.button className="primary-button" onClick={onClick} whileTap={{ scale: 0.98 }} transition={MOTION_QUICK}>
       {children}
@@ -1091,11 +1245,17 @@ function PrimaryButton({ children, onClick }) {
   );
 }
 
-function SaveButton({ item, saved, onToggleSaved }) {
+interface SaveButtonProps {
+  item: SavedItem;
+  saved: boolean;
+  onToggleSaved: ToggleSavedHandler;
+}
+
+function SaveButton({ item, saved, onToggleSaved }: SaveButtonProps) {
   return (
     <button
       className={`save-button ${saved ? "saved" : ""}`}
-      onClick={(event) => {
+      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
         onToggleSaved(item);
       }}
@@ -1106,13 +1266,20 @@ function SaveButton({ item, saved, onToggleSaved }) {
   );
 }
 
-function DetailDrawer({ item, saved, onToggleSaved, onClose }) {
-  const closeRef = useRef(null);
+interface DetailDrawerProps {
+  item: DrawerItem;
+  saved: boolean;
+  onToggleSaved: ToggleSavedHandler;
+  onClose: () => void;
+}
+
+function DetailDrawer({ item, saved, onToggleSaved, onClose }: DetailDrawerProps) {
+  const closeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!item) return undefined;
     closeRef.current?.focus();
-    const onKey = (event) => {
+    const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
@@ -1168,7 +1335,13 @@ function DetailDrawer({ item, saved, onToggleSaved, onClose }) {
   );
 }
 
-function SegmentedTabs({ tabs, active, onChange }) {
+interface SegmentedTabsProps<T extends string> {
+  tabs: readonly T[];
+  active: T;
+  onChange: (tab: T) => void;
+}
+
+function SegmentedTabs<T extends string>({ tabs, active, onChange }: SegmentedTabsProps<T>) {
   return (
     <div className="segmented-tabs" role="tablist">
       {tabs.map((tab) => (
@@ -1186,8 +1359,22 @@ function SegmentedTabs({ tabs, active, onChange }) {
   );
 }
 
-function ForecastStrip({ hours, compact = false, continuous = false, selected, onSelect }) {
-  const [hoveredHour, setHoveredHour] = useState(null);
+interface ForecastStripProps {
+  hours: HourlyForecastHour[];
+  compact?: boolean;
+  continuous?: boolean;
+  selected?: string;
+  onSelect?: (hour: HourlyForecastHour) => void;
+}
+
+function ForecastStrip({
+  hours,
+  compact = false,
+  continuous = false,
+  selected,
+  onSelect,
+}: ForecastStripProps) {
+  const [hoveredHour, setHoveredHour] = useState<string | null>(null);
 
   return (
     <div className={`forecast-strip ${compact ? "compact" : ""} ${continuous ? "continuous" : ""}`}>
@@ -1222,7 +1409,15 @@ function ForecastStrip({ hours, compact = false, continuous = false, selected, o
   );
 }
 
-function InfoRow({ icon: Icon, title, meta, value, tone }) {
+interface InfoRowProps {
+  icon: LucideIcon;
+  title: string;
+  meta: string;
+  value: string;
+  tone: Tone;
+}
+
+function InfoRow({ icon: Icon, title, meta, value, tone }: InfoRowProps) {
   return (
     <div className="info-row">
       <Icon size={19} className={`tone-${tone}`} />
@@ -1235,7 +1430,15 @@ function InfoRow({ icon: Icon, title, meta, value, tone }) {
   );
 }
 
-function MiniStat({ icon: Icon, label, value, sub, tone }) {
+interface MiniStatProps {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  sub: string;
+  tone: Tone;
+}
+
+function MiniStat({ icon: Icon, label, value, sub, tone }: MiniStatProps) {
   return (
     <div className="mini-stat">
       <Icon size={18} className={`tone-${tone}`} />
@@ -1246,7 +1449,13 @@ function MiniStat({ icon: Icon, label, value, sub, tone }) {
   );
 }
 
-function Category({ icon: Icon, label, count }) {
+interface CategoryProps {
+  icon: LucideIcon;
+  label: string;
+  count: string;
+}
+
+function Category({ icon: Icon, label, count }: CategoryProps) {
   return (
     <button className="category">
       <Icon size={18} />
@@ -1256,7 +1465,11 @@ function Category({ icon: Icon, label, count }) {
   );
 }
 
-function TravelMap({ selectedStop }) {
+interface TravelMapProps {
+  selectedStop: TransportStop;
+}
+
+function TravelMap({ selectedStop }: TravelMapProps) {
   return (
     <div className="map-panel panel" aria-label="Static local network map">
       <div className="map-grid" />
@@ -1281,4 +1494,4 @@ function TravelMap({ selectedStop }) {
   );
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")!).render(<App />);

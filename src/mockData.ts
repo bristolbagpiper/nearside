@@ -1,13 +1,26 @@
-const asset = (name) => `${import.meta.env.BASE_URL}assets/${name}`;
+import type {
+  CityOption,
+  CityPulseItem,
+  DailyForecastDay,
+  EventItem,
+  HourlyForecastHour,
+  PlaceItem,
+  RoadRow,
+  TransportDeparture,
+  TransportStop,
+  TravelUpdate,
+} from "./types";
 
-export const cityOptions = [
+const asset = (name: string): string => `${import.meta.env.BASE_URL}assets/${name}`;
+
+export const cityOptions: CityOption[] = [
   { name: "Bristol", tagline: "Harbour and hills" },
   { name: "Bath", tagline: "Compact city centre" },
   { name: "Manchester", tagline: "Busy tram network" },
   { name: "Edinburgh", tagline: "Old town and coast" },
 ];
 
-export const pulseItems = [
+export const pulseItems: CityPulseItem[] = [
   {
     id: "transport",
     label: "Public transport",
@@ -15,6 +28,7 @@ export const pulseItems = [
     detail: "70 & 72 affected near Gloucester Road",
     detailTitle: "Buses are moving, but Gloucester Road is slower than usual.",
     detailBody: "Routes 70 and 72 are seeing short holds around Zetland Road. Temple Meads departures are otherwise steady.",
+    severity: "minor",
     tone: "amber",
     icon: "bus",
     target: "travel",
@@ -26,6 +40,7 @@ export const pulseItems = [
     detail: "A38 and central bus lanes busiest",
     detailTitle: "Expect slower driving through the centre.",
     detailBody: "The A38 southbound and bus lanes near The Bearpit are the main pinch points this afternoon.",
+    severity: "warning",
     tone: "amber",
     icon: "car",
     target: "travel",
@@ -37,6 +52,7 @@ export const pulseItems = [
     detail: "Drier spell from 16:30",
     detailTitle: "Rain fades later in the afternoon.",
     detailBody: "Light rain hangs around until mid-afternoon. The clearest window is likely between 16:30 and 18:00.",
+    severity: "good",
     tone: "green",
     icon: "rain",
     target: "weather",
@@ -48,34 +64,35 @@ export const pulseItems = [
     detail: "Low pollution across Bristol",
     detailTitle: "Air quality is good across most central neighbourhoods.",
     detailBody: "No unusual pollution alerts. Conditions are comfortable for walking, cycling and outdoor plans.",
+    severity: "good",
     tone: "green",
     icon: "leaf",
     target: "weather",
   },
 ];
 
-export const stops = [
-  { id: "temple-meads", name: "Temple Meads Station", area: "Redcliffe", walk: "8 min", next: "3 min", kind: "train", tone: "green" },
-  { id: "temple-gate", name: "Temple Gate", area: "City centre", walk: "6 min", next: "1 min", kind: "bus", tone: "green" },
-  { id: "redcliffe", name: "Redcliffe Way", area: "Harbourside", walk: "7 min", next: "4 min", kind: "bus", tone: "amber" },
-  { id: "stokes", name: "Stokes Croft", area: "North centre", walk: "12 min", next: "6 min", kind: "bus", tone: "amber" },
-  { id: "queen", name: "Queen Square", area: "Old city", walk: "9 min", next: "8 min", kind: "bus", tone: "green" },
+export const stops: TransportStop[] = [
+  { id: "temple-meads", name: "Temple Meads Station", area: "Redcliffe", walk: "8 min", next: "3 min", kind: "train", severity: "good", tone: "green" },
+  { id: "temple-gate", name: "Temple Gate", area: "City centre", walk: "6 min", next: "1 min", kind: "bus", severity: "good", tone: "green" },
+  { id: "redcliffe", name: "Redcliffe Way", area: "Harbourside", walk: "7 min", next: "4 min", kind: "bus", severity: "minor", tone: "amber" },
+  { id: "stokes", name: "Stokes Croft", area: "North centre", walk: "12 min", next: "6 min", kind: "bus", severity: "minor", tone: "amber" },
+  { id: "queen", name: "Queen Square", area: "Old city", walk: "9 min", next: "8 min", kind: "bus", severity: "good", tone: "green" },
 ];
 
-export const trainDepartures = [
-  { id: "bath", destination: "Bath Spa", platform: "Platform 4", time: "14:18", tone: "green" },
-  { id: "cardiff", destination: "Cardiff Central", platform: "Platform 7", time: "14:27", tone: "green" },
-  { id: "weston", destination: "Weston-super-Mare", platform: "Platform 2", time: "14:40", tone: "amber" },
-  { id: "london", destination: "London Paddington", platform: "Platform 9", time: "14:46", tone: "green" },
+export const trainDepartures: TransportDeparture[] = [
+  { id: "bath", destination: "Bath Spa", platform: "Platform 4", time: "14:18", severity: "good", tone: "green" },
+  { id: "cardiff", destination: "Cardiff Central", platform: "Platform 7", time: "14:27", severity: "good", tone: "green" },
+  { id: "weston", destination: "Weston-super-Mare", platform: "Platform 2", time: "14:40", severity: "minor", tone: "amber" },
+  { id: "london", destination: "London Paddington", platform: "Platform 9", time: "14:46", severity: "good", tone: "green" },
 ];
 
-export const roadRows = [
-  { name: "City centre", status: "Busy", note: "Broadmead and Baldwin Street moving slowly", tone: "amber" },
-  { name: "A38", status: "Slow", note: "Delays towards Gloucester Road", tone: "amber" },
-  { name: "M32", status: "Clear", note: "No major queues into Bristol", tone: "green" },
+export const roadRows: RoadRow[] = [
+  { name: "City centre", status: "Busy", note: "Broadmead and Baldwin Street moving slowly", severity: "warning", tone: "amber" },
+  { name: "A38", status: "Slow", note: "Delays towards Gloucester Road", severity: "warning", tone: "amber" },
+  { name: "M32", status: "Clear", note: "No major queues into Bristol", severity: "good", tone: "green" },
 ];
 
-export const hourlyForecast = [
+export const hourlyForecast: HourlyForecastHour[] = [
   { id: "now", label: "Now", temp: 14, rain: 40, icon: "rain", note: "Light rain is still around central Bristol.", condition: "Light rain", wind: "11 mph SW" },
   { id: "14", label: "14:00", temp: 14, rain: 50, icon: "rain", note: "Showers continue, especially north of the centre.", condition: "Steady showers", wind: "12 mph SW" },
   { id: "15", label: "15:00", temp: 15, rain: 30, icon: "rain", note: "Rain begins to break up.", condition: "Rain easing", wind: "10 mph W" },
@@ -85,7 +102,7 @@ export const hourlyForecast = [
   { id: "19", label: "19:00", temp: 14, rain: 20, icon: "rain", note: "A few showers may return after early evening.", condition: "Chance of showers", wind: "8 mph W" },
 ];
 
-export const dailyForecast = [
+export const dailyForecast: DailyForecastDay[] = [
   { day: "Today", date: "30 Jun", condition: "Light rain", high: 16, low: 9, rain: 40, range: 72 },
   { day: "Wed", date: "1 Jul", condition: "Sunny intervals", high: 17, low: 9, rain: 10, range: 82 },
   { day: "Thu", date: "2 Jul", condition: "Cloudy", high: 16, low: 10, rain: 20, range: 66 },
@@ -93,7 +110,7 @@ export const dailyForecast = [
   { day: "Sat", date: "4 Jul", condition: "Dry spells", high: 18, low: 11, rain: 20, range: 88 },
 ];
 
-export const events = [
+export const events: EventItem[] = [
   {
     id: "balloon-fiesta",
     type: "event",
@@ -136,7 +153,7 @@ export const events = [
   },
 ];
 
-export const places = [
+export const places: PlaceItem[] = [
   {
     id: "arnolfini",
     type: "place",
@@ -189,8 +206,8 @@ export const places = [
   },
 ];
 
-export const travelUpdates = [
-  { title: "Minor bus delays", detail: "Short holds on Gloucester Road after utility works.", tone: "amber" },
-  { title: "Rail services steady", detail: "Temple Meads departures are broadly on time.", tone: "green" },
-  { title: "M32 clear", detail: "No major queues reported on the main approach.", tone: "green" },
+export const travelUpdates: TravelUpdate[] = [
+  { title: "Minor bus delays", detail: "Short holds on Gloucester Road after utility works.", severity: "minor", tone: "amber" },
+  { title: "Rail services steady", detail: "Temple Meads departures are broadly on time.", severity: "good", tone: "green" },
+  { title: "M32 clear", detail: "No major queues reported on the main approach.", severity: "good", tone: "green" },
 ];
