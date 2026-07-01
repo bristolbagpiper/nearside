@@ -86,6 +86,9 @@ export type TravelRow = SeverityState & {
   title: string;
   meta: string;
   secondary?: string;
+  nextService?: string;
+  followingService?: string;
+  statusLabel?: string;
   value: string;
   summary: string;
   departure: string;

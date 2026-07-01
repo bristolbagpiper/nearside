@@ -131,7 +131,10 @@ const travelRows: TravelRowsByMode = {
       title: "Temple Meads Station",
       meta: "Train services",
       secondary: "Paddington 10:42 on time; Cardiff 10:48 +4",
-      value: "3 min",
+      nextService: "London Paddington 14:30",
+      followingService: "Cardiff Central 14:42 +4",
+      statusLabel: "Mostly on time",
+      value: "Platform 9",
       severity: "good",
       tone: "green",
       summary: "Station concourse is clear and the main board is broadly on time.",
@@ -144,9 +147,12 @@ const travelRows: TravelRowsByMode = {
       title: "Temple Gate",
       meta: "Routes 70, 72, M1",
       secondary: "70 to Horfield 1 min; 72 to Temple Meads 6 min",
+      nextService: "70 to Horfield · 1 min",
+      followingService: "72 to Temple Meads · 6 min",
+      statusLabel: "Minor delays",
       value: "1 min",
-      severity: "good",
-      tone: "green",
+      severity: "minor",
+      tone: "amber",
       summary: "This is the quickest boarding point for the northbound corridor.",
       departure: "Route 70 to Horfield is due in 1 minute.",
       note: "Route 72 to Temple Meads follows in 6 minutes with minor bunching possible.",
@@ -157,6 +163,9 @@ const travelRows: TravelRowsByMode = {
       title: "Redcliffe Way",
       meta: "Routes 8, 70, 72",
       secondary: "8 to Temple Meads 4 min; 70 to UWE 11 min",
+      nextService: "8 to Temple Meads · 4 min",
+      followingService: "70 to UWE · 11 min",
+      statusLabel: "Running normally",
       value: "4 min",
       severity: "minor",
       tone: "amber",
@@ -173,6 +182,9 @@ const travelRows: TravelRowsByMode = {
       title: "UWE Frenchay",
       secondary: "Temple Gate 6 min; Stokes Croft 13 min",
       meta: "Minor delay · Gloucester Road",
+      nextService: "14:12",
+      followingService: "14:19",
+      statusLabel: "Minor delays",
       value: "6 min",
       severity: "minor",
       tone: "amber",
@@ -187,6 +199,9 @@ const travelRows: TravelRowsByMode = {
       title: "Temple Meads",
       secondary: "Broadmead 9 min; Temple Meads 16 min",
       meta: "Short holds · Zetland Road",
+      nextService: "14:15",
+      followingService: "14:24",
+      statusLabel: "Minor delays",
       value: "9 min",
       severity: "minor",
       tone: "amber",
@@ -201,6 +216,9 @@ const travelRows: TravelRowsByMode = {
       title: "Clifton",
       secondary: "Centre 4 min; Clifton Down 18 min",
       meta: "Normal service",
+      nextService: "14:09",
+      followingService: "14:18",
+      statusLabel: "On time",
       value: "4 min",
       severity: "good",
       tone: "green",
@@ -215,6 +233,9 @@ const travelRows: TravelRowsByMode = {
       title: "Cribbs Causeway",
       secondary: "Temple Gate 7 min; City Centre 12 min",
       meta: "Normal service",
+      nextService: "14:13",
+      followingService: "14:25",
+      statusLabel: "On time",
       value: "7 min",
       severity: "good",
       tone: "green",
@@ -229,6 +250,9 @@ const travelRows: TravelRowsByMode = {
       title: "Stockwood",
       meta: "South Bristol corridor",
       secondary: "Broad Quay 5 min; Stockwood 24 min",
+      nextService: "14:10",
+      followingService: "14:22",
+      statusLabel: "On time",
       value: "5 min",
       severity: "good",
       tone: "green",
@@ -244,6 +268,9 @@ const travelRows: TravelRowsByMode = {
       title: "Bath Spa",
       meta: "Temple Meads platform 4",
       secondary: "10:18 stopping service; doors in 7 min",
+      nextService: "14:18",
+      followingService: "Platform 4",
+      statusLabel: "On time",
       value: "14:18",
       severity: "good",
       tone: "green",
@@ -257,6 +284,9 @@ const travelRows: TravelRowsByMode = {
       title: "Cardiff Central",
       meta: "Temple Meads platform 7",
       secondary: "10:27 fast service; +4 expected",
+      nextService: "14:27",
+      followingService: "Platform 7",
+      statusLabel: "4 min late",
       value: "14:27",
       severity: "minor",
       tone: "amber",
@@ -270,6 +300,9 @@ const travelRows: TravelRowsByMode = {
       title: "Weston-super-Mare",
       meta: "Temple Meads platform 2",
       secondary: "10:40 local service; boarding shortly",
+      nextService: "14:40",
+      followingService: "Platform 2",
+      statusLabel: "Minor delay",
       value: "14:40",
       severity: "minor",
       tone: "amber",
@@ -283,6 +316,9 @@ const travelRows: TravelRowsByMode = {
       title: "London Paddington",
       meta: "Temple Meads platform 9",
       secondary: "10:46 intercity; on time",
+      nextService: "14:46",
+      followingService: "Platform 9",
+      statusLabel: "On time",
       value: "14:46",
       severity: "good",
       tone: "green",
@@ -298,6 +334,9 @@ const travelRows: TravelRowsByMode = {
       title: "A38",
       meta: "Gloucester Road slow northbound",
       secondary: "Long Ashton to Stokes Croft running 8 min slow",
+      nextService: "Impact: citybound queues",
+      followingService: "Delay: 6-8 min",
+      statusLabel: "Busy",
       value: "Busy",
       severity: "warning",
       tone: "amber",
@@ -311,6 +350,9 @@ const travelRows: TravelRowsByMode = {
       title: "Central bus lanes",
       meta: "Busiest through Broadmead",
       secondary: "Bus priority still moving but cars are bunching",
+      nextService: "Impact: central corridor",
+      followingService: "Delay: 4 min",
+      statusLabel: "Slow",
       value: "Slow",
       severity: "warning",
       tone: "amber",
@@ -324,6 +366,9 @@ const travelRows: TravelRowsByMode = {
       title: "M32",
       meta: "Main approach clear",
       secondary: "Approach traffic normal; no incident signals",
+      nextService: "Impact: no closures",
+      followingService: "Approach time normal",
+      statusLabel: "Clear",
       value: "Clear",
       severity: "good",
       tone: "green",
@@ -337,6 +382,9 @@ const travelRows: TravelRowsByMode = {
       title: "Redcliffe Hill",
       meta: "Harbourside and station approach",
       secondary: "Intermittent queueing at the bridge junction",
+      nextService: "Impact: bridge junction queues",
+      followingService: "Delay: 3-5 min",
+      statusLabel: "Watch",
       value: "Watch",
       severity: "minor",
       tone: "amber",
@@ -1044,50 +1092,51 @@ function TodayPage({ city, dashboardData, onNavigate, savedIds, onToggleSaved, o
         <DisruptionAlert disruption={dashboardData.disruption} onNavigate={onNavigate} />
       </section>
 
-      <section className="today-main-grid today-utility-grid">
-        <TravelSummary
-          ref={travelRef}
-          mode={travelMode}
-          activePulse={selectedPulse}
-          highlighted={focusTarget === "travel"}
-          activeTab={travelTab}
-          onTabChange={setTravelTab}
-          travelRows={dashboardData.travelRows}
-          onNavigate={onNavigate}
-        />
-        <WeatherSummary
-          ref={weatherRef}
-          active={selectedPulse === "weather"}
-          highlighted={focusTarget === "weather"}
-          snapshot={dashboardData.currentWeather}
-          hours={dashboardData.hourlyForecast}
-          onNavigate={onNavigate}
-        />
-      </section>
-
-      <section className="tonight-grid today-discovery-grid">
-        <FeaturedEvent
-          event={featured}
-          saved={savedIds.includes(featured.id)}
-          onToggleSaved={onToggleSaved}
-          onOpenDrawer={onOpenDrawer}
-        />
-        <div className="side-list panel">
-          <div className="section-title-row">
-            <h2>Tonight in {city.name}</h2>
-            <button className="text-link" onClick={() => onNavigate("/explore")}>
-              Open Explore
-            </button>
+      <section className="city-content-columns">
+        <div className="city-main-stack">
+          <TravelSummary
+            ref={travelRef}
+            mode={travelMode}
+            activePulse={selectedPulse}
+            highlighted={focusTarget === "travel"}
+            activeTab={travelTab}
+            onTabChange={setTravelTab}
+            travelRows={dashboardData.travelRows}
+            onNavigate={onNavigate}
+          />
+          <FeaturedEvent
+            event={featured}
+            saved={savedIds.includes(featured.id)}
+            onToggleSaved={onToggleSaved}
+            onOpenDrawer={onOpenDrawer}
+          />
+        </div>
+        <div className="city-support-stack">
+          <WeatherSummary
+            ref={weatherRef}
+            active={selectedPulse === "weather"}
+            highlighted={focusTarget === "weather"}
+            snapshot={dashboardData.currentWeather}
+            hours={dashboardData.hourlyForecast}
+            onNavigate={onNavigate}
+          />
+          <div className="side-list panel">
+            <div className="section-title-row">
+              <h2>Tonight in {city.name}</h2>
+              <button className="text-link" onClick={() => onNavigate("/explore")}>
+                Open Explore
+              </button>
+            </div>
+            {otherEvents.map((event) => (
+              <EventRow
+                key={event.id}
+                event={event}
+                saved={savedIds.includes(event.id)}
+                onToggleSaved={onToggleSaved}
+                onOpenDrawer={onOpenDrawer}
+              />
+            ))}
           </div>
-          {otherEvents.map((event) => (
-            <EventRow
-              key={event.id}
-              event={event}
-              saved={savedIds.includes(event.id)}
-              onToggleSaved={onToggleSaved}
-              onOpenDrawer={onOpenDrawer}
-            />
-          ))}
         </div>
       </section>
 
@@ -1301,11 +1350,14 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
                     <span className="travel-row-copy">
                       <strong>{row.badge ? <span className="travel-badge">{row.badge}</span> : null}{row.title}</strong>
                       <small>{row.meta}</small>
-                      {row.secondary ? <b>{row.secondary}</b> : null}
+                    </span>
+                    <span className="travel-row-service">
+                      <strong>{row.nextService ?? row.departure}</strong>
+                      <small>{row.followingService ?? row.secondary ?? row.note}</small>
                     </span>
                     <em className={`travel-row-status ${row.tone}`}>
                       <strong>{row.value}</strong>
-                      <small>{getSeverityLabel(row.severity)}</small>
+                      <small>{row.statusLabel ?? getSeverityLabel(row.severity)}</small>
                     </em>
                     <ChevronRight size={16} className="travel-row-chevron" />
                   </motion.button>
