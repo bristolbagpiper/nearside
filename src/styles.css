@@ -163,33 +163,39 @@ button {
 }
 
 .nav-links {
-  display: flex;
+  display: inline-flex;
   justify-content: center;
-  gap: 26px;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid rgba(184, 213, 236, 0.06);
+  border-radius: 999px;
+  background: rgba(7, 22, 36, 0.58);
 }
 
 .nav-link {
   position: relative;
-  height: 58px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   color: var(--text-soft);
-  font-size: 13px;
-  padding: 0 2px;
-  transition: color 160ms ease;
+  font-size: 12px;
+  padding: 0 12px;
+  border-radius: 999px;
+  transition: color 160ms ease, background 160ms ease;
 }
 
 .nav-link:hover,
 .nav-link.active {
   color: var(--text);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .nav-active-indicator {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 3px;
+  left: 10px;
+  right: 10px;
+  bottom: 4px;
+  height: 2px;
   border-radius: 99px;
   background: var(--coral);
 }
@@ -477,29 +483,32 @@ p {
 .pulse-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0;
+  padding: 4px;
+  border: 1px solid rgba(184, 213, 236, 0.06);
+  border-radius: 16px;
+  background: rgba(7, 22, 36, 0.5);
 }
 
 .pulse-card {
   position: relative;
-  min-height: 76px;
-  padding: 12px;
+  min-height: 64px;
+  padding: 10px 12px;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   align-content: start;
   justify-items: start;
   gap: 4px 9px;
   text-align: left;
-  background: rgba(10, 27, 43, 0.74);
-  border: 1px solid rgba(184, 213, 236, 0.04);
+  background: transparent;
+  border: 0;
   border-radius: 12px;
   box-shadow: none;
   transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .pulse-card:hover {
-  background: rgba(13, 33, 51, 0.9);
-  border-color: rgba(184, 213, 236, 0.08);
+  background: rgba(255, 255, 255, 0.028);
 }
 
 .pulse-card:focus-visible,
@@ -512,15 +521,15 @@ p {
 }
 
 .pulse-card.selected {
-  border-color: rgba(255, 112, 98, 0.26);
+  color: var(--text);
 }
 
 .pulse-card-active-surface {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border: 1px solid rgba(255, 112, 98, 0.34);
-  background: rgba(13, 34, 53, 0.98);
+  border: 1px solid rgba(255, 112, 98, 0.26);
+  background: rgba(10, 30, 46, 0.95);
 }
 
 .pulse-card-content {
@@ -529,12 +538,12 @@ p {
 }
 
 .pulse-icon {
-  width: 25px;
-  height: 25px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0;
+  background: transparent;
   grid-row: 1 / 4;
 }
 
@@ -549,12 +558,14 @@ p {
 .red { color: var(--red); }
 
 .pulse-label {
-  color: var(--text-soft);
-  font-size: 11px;
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .pulse-card strong {
-  font-size: 13px;
+  font-size: 14px;
   grid-column: 2;
 }
 
@@ -789,28 +800,26 @@ p {
 .segmented-tabs {
   display: inline-flex;
   overflow: hidden;
-  border: 1px solid rgba(184, 213, 236, 0.08);
-  border-radius: 10px;
-  background: rgba(2, 8, 14, 0.26);
+  padding: 3px;
+  border: 1px solid rgba(184, 213, 236, 0.07);
+  border-radius: 999px;
+  background: rgba(4, 14, 24, 0.54);
 }
 
 .segmented-tabs button {
-  min-width: 80px;
+  min-width: 74px;
   height: 30px;
   padding: 0 12px;
   color: var(--text-soft);
   font-size: 12px;
-  border-right: 1px solid var(--border);
-}
-
-.segmented-tabs button:last-child {
-  border-right: 0;
+  border-radius: 999px;
 }
 
 .segmented-tabs button.active {
-  color: #09111b;
-  background: linear-gradient(180deg, #ff7f73, #f15b50);
-  font-weight: 730;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(184, 213, 236, 0.05);
+  font-weight: 700;
 }
 
 .travel-tab-panel {
@@ -872,7 +881,7 @@ p {
 
 .travel-row-detail:hover,
 .travel-row-detail.expanded {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .travel-row-shell {
@@ -947,8 +956,9 @@ p {
   display: inline-grid;
   place-items: center;
   padding: 0 6px;
-  color: #09111b;
-  background: rgba(255, 112, 98, 0.88);
+  color: var(--coral);
+  background: rgba(255, 112, 98, 0.1);
+  border: 1px solid rgba(255, 112, 98, 0.16);
   border-radius: 999px;
   font-size: 11px;
   font-weight: 800;
@@ -1110,9 +1120,9 @@ p {
 .forecast-strip.continuous {
   gap: 0;
   overflow: hidden;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  border: 1px solid rgba(184, 213, 236, 0.05);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.016);
 }
 
 .weather-summary .forecast-strip.compact {
@@ -1123,21 +1133,21 @@ p {
 
 .weather-summary .forecast-strip.compact button {
   min-width: 0;
-  padding-inline: 4px;
-  min-height: 50px;
+  padding-inline: 2px;
+  min-height: 48px;
 }
 
 .forecast-strip button {
   position: relative;
-  min-height: 54px;
+  min-height: 48px;
   display: grid;
   justify-items: center;
-  gap: 4px;
-  padding: 6px 7px;
+  gap: 3px;
+  padding: 6px 6px 5px;
   color: var(--text-soft);
-  background: rgba(255, 255, 255, 0.018);
+  background: transparent;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: 0;
 }
 
 .forecast-strip.continuous button {
@@ -1148,8 +1158,8 @@ p {
 
 .forecast-strip.continuous button.selected,
 .forecast-strip.continuous button.current {
-  background: rgba(116, 185, 232, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(116, 185, 232, 0.08);
+  background: rgba(116, 185, 232, 0.08);
+  box-shadow: inset 0 -2px 0 rgba(255, 112, 98, 0.7);
 }
 
 .forecast-strip.continuous button:last-child {
@@ -1242,7 +1252,7 @@ p {
   max-height: 248px;
   padding: 0;
   overflow: hidden;
-  border-color: rgba(184, 213, 236, 0.04);
+  border-color: rgba(184, 213, 236, 0.02);
   background: rgba(8, 23, 37, 0.9);
   box-shadow: none;
 }
@@ -1273,7 +1283,7 @@ p {
   display: grid;
   align-content: center;
   gap: 6px;
-  padding: 16px;
+  padding: 18px 18px 18px 20px;
 }
 
 .featured-copy h2 {
@@ -1358,8 +1368,8 @@ p {
   display: grid;
   align-content: start;
   gap: 0;
-  padding: 14px 16px 10px;
-  background: rgba(8, 23, 37, 0.9);
+  padding: 10px 16px 8px;
+  background: transparent;
 }
 
 .tonight-list .section-title-row {
@@ -1388,9 +1398,9 @@ p {
   grid-template-columns: 108px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
-  padding: 4px 0;
+  padding: 6px 8px 6px 0;
   text-align: left;
-  border-radius: 8px;
+  border-radius: 12px;
   transition: background 160ms ease;
 }
 
@@ -1407,7 +1417,7 @@ p {
 }
 
 .event-row-main:hover {
-  background: rgba(255, 255, 255, 0.024);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .event-row span {

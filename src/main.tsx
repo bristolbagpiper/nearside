@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { createRoot } from "react-dom/client";
-import { Command as CommandPrimitive } from "cmdk";
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "motion/react";
-import * as Dialog from "@radix-ui/react-dialog";
-import * as Tooltip from "@radix-ui/react-tooltip";
+import { Button, Disclosure, Drawer, ListBox, Popover, Tabs, Tooltip as HeroTooltip } from "@heroui/react";
 import {
   ArrowUpRight,
   Bell,
@@ -93,6 +91,10 @@ const EXPLORE_TABS: readonly ExploreMode[] = ["Events", "Places"];
 const RECENT_CITY_NAMES = ["Bristol", "Bath", "London"] as const;
 const POPULAR_CITY_NAMES = ["Manchester", "Edinburgh", "Cardiff", "Brighton"] as const;
 const WEATHER_HIGHLIGHT_HOUR = "now";
+const CITY_SEARCH_GROUPS: Array<{ label: string; cities: readonly string[] }> = [
+  { label: "Recent cities", cities: RECENT_CITY_NAMES },
+  { label: "Popular cities", cities: POPULAR_CITY_NAMES },
+];
 
 function getSeverityLabel(severity: Severity): string {
   switch (severity) {
@@ -792,7 +794,6 @@ function App() {
   const [city, setCity] = useLocalStorageState<CityOption>("citynow-city", cityOptions[0]!);
   const [savedIds, setSavedIds] = useLocalStorageState<SavedState>("citynow-saved", []);
   const [drawerItem, setDrawerItem] = useState<DrawerItem>(null);
-  const [cityCommandOpen, setCityCommandOpen] = useState(false);
 
   useEffect(() => {
     const syncRoute = () => setRoute(getRoute());
@@ -825,21 +826,19 @@ function App() {
     const nextCity = commandCityLookup.get(cityName.toLowerCase());
     if (!nextCity) return;
     setCity(nextCity);
-    setCityCommandOpen(false);
   };
 
   return (
-    <Tooltip.Provider delayDuration={80}>
-      <MotionConfig reducedMotion="user">
-        <LayoutGroup id="citynow-shell">
-          <div className="page-shell citynow-shell">
-            <div className="app-surface">
-              <TopNav
-                route={route}
-                city={city}
-                onCityCommandOpen={() => setCityCommandOpen(true)}
-                onNavigate={navigate}
-              />
+    <MotionConfig reducedMotion="user">
+      <LayoutGroup id="citynow-shell">
+        <div className="page-shell citynow-shell">
+          <div className="app-surface">
+            <TopNav
+              route={route}
+              city={city}
+              onSelectCity={handleCitySelect}
+              onNavigate={navigate}
+            />
               <main className="route-frame">
                 {route === "/today" && (
                   <TodayPage
@@ -871,35 +870,28 @@ function App() {
                   />
                 )}
               </main>
-            </div>
-            <CityCommandDialog
-              city={city}
-              open={cityCommandOpen}
-              onOpenChange={setCityCommandOpen}
-              onSelectCity={handleCitySelect}
-            />
-            <DetailDrawer
-              item={drawerItem}
-              cityName={city.name}
-              saved={drawerItem ? savedIds.includes(drawerItem.id) : false}
-              onToggleSaved={toggleSaved}
-              onClose={() => setDrawerItem(null)}
-            />
           </div>
-        </LayoutGroup>
-      </MotionConfig>
-    </Tooltip.Provider>
+          <DetailDrawer
+            item={drawerItem}
+            cityName={city.name}
+            saved={drawerItem ? savedIds.includes(drawerItem.id) : false}
+            onToggleSaved={toggleSaved}
+            onClose={() => setDrawerItem(null)}
+          />
+        </div>
+      </LayoutGroup>
+    </MotionConfig>
   );
 }
 
 interface TopNavProps {
   route: RoutePath;
   city: CityOption;
-  onCityCommandOpen: () => void;
+  onSelectCity: (cityName: string) => void;
   onNavigate: NavigateHandler;
 }
 
-function TopNav({ route, city, onCityCommandOpen, onNavigate }: TopNavProps) {
+function TopNav({ route, city, onSelectCity, onNavigate }: TopNavProps) {
   return (
     <header className="top-nav">
       <button className="brand" onClick={() => onNavigate("/today")} aria-label="CityNow home">
@@ -908,111 +900,98 @@ function TopNav({ route, city, onCityCommandOpen, onNavigate }: TopNavProps) {
         </span>
         <span>CityNow</span>
       </button>
-      <nav className="nav-links" aria-label="Primary navigation">
-        {navItems.map((item) => (
-          <button
-            key={item.path}
-            className={`nav-link ${route === item.path ? "active" : ""}`}
-            onClick={() => onNavigate(item.path)}
-          >
-            {item.label}
-            {route === item.path ? (
-              <motion.span className="nav-active-indicator" layoutId="citynow-nav-indicator" transition={MOTION_SWAP} />
-            ) : null}
-          </button>
-        ))}
-      </nav>
+      <Tabs
+        selectedKey={route}
+        onSelectionChange={(key) => onNavigate(key as RoutePath)}
+        className="cn-main-nav"
+        aria-label="Primary navigation"
+      >
+        <Tabs.ListContainer className="cn-main-nav-container">
+          <Tabs.List className="cn-main-nav-list" items={navItems}>
+            {(item) => (
+              <Tabs.Tab id={item.path} className="cn-main-nav-tab">
+                {item.label}
+                <Tabs.Indicator className="cn-main-nav-indicator" />
+              </Tabs.Tab>
+            )}
+          </Tabs.List>
+        </Tabs.ListContainer>
+      </Tabs>
       <div className="nav-actions">
-        <button className="city-button" onClick={onCityCommandOpen} aria-label="Open city search">
-          <MapPin size={14} />
-          <span>{city.name}, UK</span>
-          <ChevronDown size={14} />
-        </button>
-        <button className="icon-button" aria-label="Notifications">
+        <CitySwitcher city={city} onSelectCity={onSelectCity} />
+        <Button className="icon-button" aria-label="Notifications" isIconOnly>
           <Bell size={15} />
-        </button>
-        <button className="icon-button mobile-menu" aria-label="Menu">
+        </Button>
+        <Button className="icon-button mobile-menu" aria-label="Menu" isIconOnly>
           <Menu size={16} />
-        </button>
+        </Button>
       </div>
     </header>
   );
 }
 
-interface CityCommandDialogProps {
+interface CitySwitcherProps {
   city: CityOption;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   onSelectCity: (cityName: string) => void;
 }
 
-function CityCommandDialog({ city, open, onOpenChange, onSelectCity }: CityCommandDialogProps) {
+function CitySwitcher({ city, onSelectCity }: CitySwitcherProps) {
+  const [query, setQuery] = useState("");
+  const filteredGroups = CITY_SEARCH_GROUPS.map((group) => ({
+    ...group,
+    cities: group.cities.filter((cityName) => {
+      const option = commandCityLookup.get(cityName.toLowerCase());
+      return `${cityName} ${option?.tagline ?? ""}`.toLowerCase().includes(query.trim().toLowerCase());
+    }),
+  })).filter((group) => group.cities.length > 0);
+
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <AnimatePresence>
-        {open ? (
-          <Dialog.Portal forceMount>
-            <Dialog.Overlay asChild>
-              <motion.div
-                className="command-overlay"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={MOTION_SWAP}
-              />
-            </Dialog.Overlay>
-            <Dialog.Content asChild>
-              <motion.div
-                className="command-content"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 4 }}
-                transition={MOTION_SWAP}
-              >
-                <Dialog.Title className="sr-only">Search a city</Dialog.Title>
-                <CommandPrimitive label="City search" className="command-root">
-                  <div className="command-input-shell">
-                    <MapPin size={15} />
-                    <CommandPrimitive.Input className="command-input" placeholder="Search a city…" />
-                  </div>
-                  <CommandPrimitive.List className="command-list">
-                    <CommandPrimitive.Empty className="command-empty">No city found.</CommandPrimitive.Empty>
-                    <CommandPrimitive.Group heading="Recent cities" className="command-group">
-                      {RECENT_CITY_NAMES.map((cityName) => (
-                        <CommandPrimitive.Item
-                          key={cityName}
-                          value={cityName}
-                          className="command-item"
-                          onSelect={onSelectCity}
-                        >
-                          <span>{cityName}</span>
-                          <small>{commandCityLookup.get(cityName.toLowerCase())?.tagline}</small>
-                          {city.name === cityName ? <span className="command-current">Current</span> : null}
-                        </CommandPrimitive.Item>
-                      ))}
-                    </CommandPrimitive.Group>
-                    <CommandPrimitive.Group heading="Popular cities" className="command-group">
-                      {POPULAR_CITY_NAMES.map((cityName) => (
-                        <CommandPrimitive.Item
-                          key={cityName}
-                          value={cityName}
-                          className="command-item"
-                          onSelect={onSelectCity}
-                        >
-                          <span>{cityName}</span>
-                          <small>{commandCityLookup.get(cityName.toLowerCase())?.tagline}</small>
-                          {city.name === cityName ? <span className="command-current">Current</span> : null}
-                        </CommandPrimitive.Item>
-                      ))}
-                    </CommandPrimitive.Group>
-                  </CommandPrimitive.List>
-                </CommandPrimitive>
-              </motion.div>
-            </Dialog.Content>
-          </Dialog.Portal>
-        ) : null}
-      </AnimatePresence>
-    </Dialog.Root>
+    <Popover>
+      <Popover.Trigger className="city-popover-trigger">
+        <Button className="city-button" aria-label="Open city search">
+          <MapPin size={14} />
+          <span>{city.name}, UK</span>
+          <ChevronDown size={14} />
+        </Button>
+      </Popover.Trigger>
+      <Popover.Content className="city-popover" placement="bottom right">
+        <Popover.Dialog className="city-popover-dialog" aria-label="Switch city">
+          <label className="city-search-field">
+            <MapPin size={15} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search a city..."
+              autoFocus
+            />
+          </label>
+          <div className="city-search-list">
+            {filteredGroups.length === 0 ? <span className="city-search-empty">No city found.</span> : null}
+            {filteredGroups.map((group) => (
+              <div className="city-search-group" key={group.label}>
+                <span>{group.label}</span>
+                {group.cities.map((cityName) => {
+                  const option = commandCityLookup.get(cityName.toLowerCase());
+                  return (
+                    <Button
+                      key={cityName}
+                      className="city-search-item"
+                      onPress={() => onSelectCity(cityName)}
+                    >
+                      <span>
+                        <strong>{cityName}</strong>
+                        <small>{option?.tagline}</small>
+                      </span>
+                      {city.name === cityName ? <em>Current</em> : null}
+                    </Button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </Popover.Dialog>
+      </Popover.Content>
+    </Popover>
   );
 }
 
@@ -1189,25 +1168,18 @@ interface PulseStatusCardProps {
 function PulseStatusCard({ item, selected, onClick }: PulseStatusCardProps) {
   const Icon = iconMap[item.icon];
   return (
-    <motion.button
-      className={`pulse-card ${item.tone} ${selected ? "selected" : ""}`}
-      onClick={onClick}
+    <Button
+      className={`cn-pulse-segment ${item.tone} ${selected ? "selected" : ""}`}
+      onPress={onClick}
       aria-pressed={selected}
-      whileHover={{ y: -1 }}
-      transition={MOTION_QUICK}
     >
-      {selected ? (
-        <motion.div
-          layoutId="city-pulse-active"
-          className="pulse-card-active-surface"
-          transition={MOTION_QUICK}
-        />
-      ) : null}
-      <span className="pulse-card-content pulse-icon"><Icon size={22} /></span>
-      <span className="pulse-card-content pulse-label">{item.label}</span>
-      <strong className="pulse-card-content">{item.status}</strong>
-      <span className="pulse-card-content">{item.detail}</span>
-    </motion.button>
+      <span className="cn-pulse-icon"><Icon size={19} /></span>
+      <span>
+        <small>{item.label}</small>
+        <strong>{item.status}</strong>
+        <em>{item.detail}</em>
+      </span>
+    </Button>
   );
 }
 
@@ -1217,47 +1189,34 @@ interface DisruptionAlertProps {
 }
 
 function DisruptionAlert({ disruption, onNavigate }: DisruptionAlertProps) {
-  const [expanded, setExpanded] = useState(false);
-
   return (
-    <motion.div className="disruption-wrap" layout transition={MOTION_QUICK}>
-      <div className="disruption-alert-row">
-        <motion.button
-          className="disruption-alert"
-          onClick={() => setExpanded((value) => !value)}
-          aria-expanded={expanded}
-          whileHover={{ y: -1 }}
-          transition={MOTION_QUICK}
-        >
+    <Disclosure className="cn-alert-disclosure">
+      <div className="cn-alert-row">
+        <Disclosure.Heading className="cn-alert-heading">
+          <Disclosure.Trigger className="cn-alert-trigger">
           <TriangleAlert size={17} />
           <span>
             <strong>{disruption.headline}</strong>
             <small>{disruption.metadata} · {disruption.updated} · Click for details</small>
           </span>
-          <ChevronDown className="alert-chevron" size={16} />
-        </motion.button>
-        <button className="text-link alert-link" onClick={() => onNavigate("/travel")}>
+            <Disclosure.Indicator className="cn-alert-indicator">
+              <ChevronDown size={16} />
+            </Disclosure.Indicator>
+          </Disclosure.Trigger>
+        </Disclosure.Heading>
+        <Button className="text-link alert-link" onPress={() => onNavigate("/travel")}>
           See travel
-        </button>
+        </Button>
       </div>
-      <AnimatePresence initial={false}>
-        {expanded ? (
-          <motion.div
-            key="disruption-details"
-            className="disruption-details"
-            initial={{ opacity: 0, y: 3 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 3 }}
-            transition={MOTION_SWAP}
-          >
-            <span><strong>{disruption.routes[0]}</strong> Route affected by local congestion</span>
-            <span><strong>{disruption.routes[1]}</strong> Short holds through the local corridor</span>
-            <span><strong>Nearby stop</strong> {disruption.nearbyStop}</span>
-            <small>{disruption.operationalDetail} · {disruption.updated}</small>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </motion.div>
+      <Disclosure.Content className="cn-alert-content">
+        <Disclosure.Body className="disruption-details">
+          <span><strong>{disruption.routes[0]}</strong> Route affected by local congestion</span>
+          <span><strong>{disruption.routes[1]}</strong> Short holds through the local corridor</span>
+          <span><strong>Nearby stop</strong> {disruption.nearbyStop}</span>
+          <small>{disruption.operationalDetail} · {disruption.updated}</small>
+        </Disclosure.Body>
+      </Disclosure.Content>
+    </Disclosure>
   );
 }
 
