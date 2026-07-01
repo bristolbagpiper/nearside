@@ -1092,8 +1092,8 @@ function TodayPage({ city, dashboardData, onNavigate, savedIds, onToggleSaved, o
         <DisruptionAlert disruption={dashboardData.disruption} onNavigate={onNavigate} />
       </section>
 
-      <section className="city-content-columns">
-        <div className="city-main-stack">
+      <section className="today-practical-shell panel">
+        <div className="today-practical-grid">
           <TravelSummary
             ref={travelRef}
             mode={travelMode}
@@ -1103,15 +1103,8 @@ function TodayPage({ city, dashboardData, onNavigate, savedIds, onToggleSaved, o
             onTabChange={setTravelTab}
             travelRows={dashboardData.travelRows}
             onNavigate={onNavigate}
+            embedded
           />
-          <FeaturedEvent
-            event={featured}
-            saved={savedIds.includes(featured.id)}
-            onToggleSaved={onToggleSaved}
-            onOpenDrawer={onOpenDrawer}
-          />
-        </div>
-        <div className="city-support-stack">
           <WeatherSummary
             ref={weatherRef}
             active={selectedPulse === "weather"}
@@ -1119,8 +1112,21 @@ function TodayPage({ city, dashboardData, onNavigate, savedIds, onToggleSaved, o
             snapshot={dashboardData.currentWeather}
             hours={dashboardData.hourlyForecast}
             onNavigate={onNavigate}
+            embedded
           />
-          <div className="side-list panel">
+        </div>
+      </section>
+
+      <section className="today-discovery-shell panel">
+        <div className="today-discovery-grid-embedded">
+          <FeaturedEvent
+            event={featured}
+            saved={savedIds.includes(featured.id)}
+            onToggleSaved={onToggleSaved}
+            onOpenDrawer={onOpenDrawer}
+            embedded
+          />
+          <div className="side-list tonight-list">
             <div className="section-title-row">
               <h2>Tonight in {city.name}</h2>
               <button className="text-link" onClick={() => onNavigate("/explore")}>
@@ -1263,10 +1269,11 @@ interface TravelSummaryProps {
   onTabChange: Dispatch<SetStateAction<TravelSummaryTab>>;
   travelRows: TravelRowsByMode;
   onNavigate: NavigateHandler;
+  embedded?: boolean;
 }
 
 const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function TravelSummary(
-  { mode, activePulse, highlighted, activeTab, onTabChange, travelRows, onNavigate },
+  { mode, activePulse, highlighted, activeTab, onTabChange, travelRows, onNavigate, embedded = false },
   ref,
 ) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -1282,6 +1289,7 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
     activeTab === "Trains" ? travelRows.trains :
     activeTab === "Roads" ? travelRows.roads :
     travelRows.nearby;
+  const visibleRows = mode === "transport" && activeTab === "Buses" ? activeRows.slice(0, 4) : activeRows;
 
   const title = mode === "roads" ? "Roads now" : mode === "air" ? "Air quality now" : "Travel now";
   const sentence = mode === "roads"
@@ -1300,7 +1308,7 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
   return (
     <motion.section
       ref={ref}
-      className={`panel travel-summary ${active ? "module-active" : ""} ${highlighted ? "module-focus" : ""}`}
+      className={`${embedded ? "" : "panel "}travel-summary ${embedded ? "embedded" : ""} ${active ? "module-active" : ""} ${highlighted ? "module-focus" : ""}`.trim()}
       tabIndex={-1}
       layout
       transition={MOTION_QUICK}
@@ -1330,7 +1338,7 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
             transition={MOTION_SWAP}
             layout
           >
-            {activeRows.map((row) => {
+            {visibleRows.map((row) => {
               const expanded = expandedRow === row.id;
               return (
                 <motion.div
@@ -1383,6 +1391,13 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
                 </motion.div>
               );
             })}
+            {mode === "transport" && activeTab === "Buses" ? (
+              <div className="travel-list-footer">
+                <button className="text-link inline-link" onClick={() => onNavigate("/travel")}>
+                  View all bus services
+                </button>
+              </div>
+            ) : null}
           </motion.div>
         </AnimatePresence>
       </motion.div>
@@ -1396,10 +1411,11 @@ interface WeatherSummaryProps {
   snapshot: WeatherSnapshot;
   hours: HourlyForecastHour[];
   onNavigate: NavigateHandler;
+  embedded?: boolean;
 }
 
 const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(function WeatherSummary(
-  { active, highlighted, snapshot, hours, onNavigate },
+  { active, highlighted, snapshot, hours, onNavigate, embedded = false },
   ref,
 ) {
   const [selectedHour, setSelectedHour] = useState<HourlyForecastHour>(hours[0] ?? hourlyForecast[0]!);
@@ -1411,7 +1427,7 @@ const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(functi
   return (
     <motion.section
       ref={ref}
-      className={`panel weather-summary ${active ? "module-active" : ""} ${highlighted ? "module-focus" : ""}`}
+      className={`${embedded ? "" : "panel "}weather-summary ${embedded ? "embedded" : ""} ${active ? "module-active" : ""} ${highlighted ? "module-focus" : ""}`.trim()}
       tabIndex={-1}
       layout
       transition={MOTION_QUICK}
@@ -1719,11 +1735,12 @@ interface FeaturedEventProps {
   saved: boolean;
   onToggleSaved: ToggleSavedHandler;
   onOpenDrawer: (item: SavedItem) => void;
+  embedded?: boolean;
 }
 
-function FeaturedEvent({ event, saved, onToggleSaved, onOpenDrawer }: FeaturedEventProps) {
+function FeaturedEvent({ event, saved, onToggleSaved, onOpenDrawer, embedded = false }: FeaturedEventProps) {
   return (
-    <article className="featured-event panel">
+    <article className={`${embedded ? "" : "panel "}featured-event ${embedded ? "embedded" : ""}`.trim()}>
       <motion.button
         className="featured-media-hit"
         onClick={() => onOpenDrawer(event)}
