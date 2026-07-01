@@ -82,8 +82,10 @@ export type RoadRow = SeverityState & {
 export type TravelRow = SeverityState & {
   id: string;
   icon: LucideIcon;
+  badge?: string;
   title: string;
   meta: string;
+  secondary?: string;
   value: string;
   summary: string;
   departure: string;
@@ -102,11 +104,21 @@ export interface HourlyForecastHour {
   id: string;
   label: string;
   temp: number;
+  feelsLike: number;
   rain: number;
   icon: WeatherIconKey;
   note: string;
   condition: string;
   wind: string;
+}
+
+export interface WeatherSnapshot {
+  temp: number;
+  condition: string;
+  feelsLike: number;
+  summary: string;
+  dryWindow: string;
+  dryAdvice: string;
 }
 
 export interface DailyForecastDay {
@@ -131,6 +143,9 @@ export interface EventItem extends SavedItemBase {
   date: string;
   time: string;
   venue: string;
+  distance: string;
+  ticketInfo: string;
+  availability: string;
   category?: never;
   hours?: never;
   neighbourhood?: never;
@@ -144,6 +159,9 @@ export interface PlaceItem extends SavedItemBase {
   date?: never;
   time?: never;
   venue?: never;
+  distance?: never;
+  ticketInfo?: never;
+  availability?: never;
 }
 
 export type SavedItem = EventItem | PlaceItem;

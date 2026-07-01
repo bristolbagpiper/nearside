@@ -16,8 +16,11 @@ const asset = (name: string): string => `${import.meta.env.BASE_URL}assets/${nam
 export const cityOptions: CityOption[] = [
   { name: "Bristol", tagline: "Harbour and hills" },
   { name: "Bath", tagline: "Compact city centre" },
+  { name: "London", tagline: "Dense rail and Tube links" },
   { name: "Manchester", tagline: "Busy tram network" },
   { name: "Edinburgh", tagline: "Old town and coast" },
+  { name: "Cardiff", tagline: "Compact centre and bay" },
+  { name: "Brighton", tagline: "Seafront and station axis" },
 ];
 
 export const pulseItems: CityPulseItem[] = [
@@ -93,13 +96,13 @@ export const roadRows: RoadRow[] = [
 ];
 
 export const hourlyForecast: HourlyForecastHour[] = [
-  { id: "now", label: "Now", temp: 14, rain: 40, icon: "rain", note: "Light rain is still around central Bristol.", condition: "Light rain", wind: "11 mph SW" },
-  { id: "14", label: "14:00", temp: 14, rain: 50, icon: "rain", note: "Showers continue, especially north of the centre.", condition: "Steady showers", wind: "12 mph SW" },
-  { id: "15", label: "15:00", temp: 15, rain: 30, icon: "rain", note: "Rain begins to break up.", condition: "Rain easing", wind: "10 mph W" },
-  { id: "16", label: "16:00", temp: 15, rain: 20, icon: "sun", note: "Cloud thins with a better dry spell building.", condition: "Cloudy breaks", wind: "9 mph W" },
-  { id: "17", label: "17:00", temp: 16, rain: 10, icon: "sun", note: "Best dry window starts around this time.", condition: "Dry spell", wind: "8 mph W" },
-  { id: "18", label: "18:00", temp: 15, rain: 10, icon: "sun", note: "Dryer and brighter, but pavements may still be wet.", condition: "Brighter skies", wind: "7 mph W" },
-  { id: "19", label: "19:00", temp: 14, rain: 20, icon: "rain", note: "A few showers may return after early evening.", condition: "Chance of showers", wind: "8 mph W" },
+  { id: "now", label: "Now", temp: 14, feelsLike: 12, rain: 40, icon: "rain", note: "Light rain is still around central Bristol.", condition: "Light rain", wind: "11 mph SW" },
+  { id: "14", label: "14:00", temp: 14, feelsLike: 12, rain: 50, icon: "rain", note: "Showers continue, especially north of the centre.", condition: "Steady showers", wind: "12 mph SW" },
+  { id: "15", label: "15:00", temp: 15, feelsLike: 13, rain: 30, icon: "rain", note: "Rain begins to break up.", condition: "Rain easing", wind: "10 mph W" },
+  { id: "16", label: "16:00", temp: 15, feelsLike: 14, rain: 20, icon: "sun", note: "Cloud thins with a better dry spell building.", condition: "Cloudy breaks", wind: "9 mph W" },
+  { id: "17", label: "17:00", temp: 16, feelsLike: 15, rain: 10, icon: "sun", note: "Best dry window starts around this time.", condition: "Dry spell", wind: "8 mph W" },
+  { id: "18", label: "18:00", temp: 15, feelsLike: 15, rain: 10, icon: "sun", note: "Dryer and brighter, but pavements may still be wet.", condition: "Brighter skies", wind: "7 mph W" },
+  { id: "19", label: "19:00", temp: 14, feelsLike: 13, rain: 20, icon: "rain", note: "A few showers may return after early evening.", condition: "Chance of showers", wind: "8 mph W" },
 ];
 
 export const dailyForecast: DailyForecastDay[] = [
@@ -118,6 +121,9 @@ export const events: EventItem[] = [
     date: "Tonight",
     time: "18:00-21:30",
     venue: "Ashton Court Estate",
+    distance: "3.2 miles",
+    ticketInfo: "Tickets from £12",
+    availability: "Good availability",
     description: "Evening launches, food stalls and a calm view back across the city when the weather allows.",
     image: asset("balloon-fiesta.png"),
   },
@@ -128,6 +134,9 @@ export const events: EventItem[] = [
     date: "Tonight",
     time: "19:30-23:00",
     venue: "Stokes Croft",
+    distance: "1.1 miles",
+    ticketInfo: "Tickets from £9",
+    availability: "Limited tickets",
     description: "A compact evening gig with local support and late trains still within reach from the centre.",
     image: asset("strange-brew.png"),
   },
@@ -138,6 +147,9 @@ export const events: EventItem[] = [
     date: "20:15",
     time: "20:15-22:10",
     venue: "Harbourside",
+    distance: "0.8 miles",
+    ticketInfo: "Tickets from £11",
+    availability: "Seats available",
     description: "Independent film screening by the water, close to bus stops and late food around Canons Road.",
     image: asset("watershed.png"),
   },
@@ -148,6 +160,9 @@ export const events: EventItem[] = [
     date: "Today",
     time: "17:00-20:30",
     venue: "Old City",
+    distance: "0.6 miles",
+    ticketInfo: "Free entry",
+    availability: "Open access",
     description: "Covered food stalls and independent traders in the old market lanes.",
     image: asset("market-night.png"),
   },

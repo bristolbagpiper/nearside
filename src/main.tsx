@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { createRoot } from "react-dom/client";
+import { Command as CommandPrimitive } from "cmdk";
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "motion/react";
+import * as Dialog from "@radix-ui/react-dialog";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import {
+  ArrowUpRight,
   Bell,
   Bookmark,
   BookmarkCheck,
@@ -14,6 +18,7 @@ import {
   CloudRain,
   CloudSun,
   Compass,
+  Droplets,
   ExternalLink,
   Leaf,
   MapPin,
@@ -55,6 +60,7 @@ import type {
   RoutePath,
   SavedItem,
   SavedState,
+  Severity,
   Tone,
   TransportDeparture,
   TransportStop,
@@ -63,6 +69,7 @@ import type {
   TravelRow,
   TravelRowsByMode,
   TravelSummaryTab,
+  WeatherSnapshot,
 } from "./types";
 import "./styles.css";
 
@@ -83,6 +90,22 @@ const navItems: Array<{ label: string; path: RoutePath }> = [
 const TODAY_TRAVEL_TABS: readonly TravelSummaryTab[] = ["Nearby", "Buses", "Trains", "Roads"];
 const TRAVEL_PAGE_TABS: readonly TravelPageTab[] = ["Nearby", "Bus", "Train", "Road"];
 const EXPLORE_TABS: readonly ExploreMode[] = ["Events", "Places"];
+const RECENT_CITY_NAMES = ["Bristol", "Bath", "London"] as const;
+const POPULAR_CITY_NAMES = ["Manchester", "Edinburgh", "Cardiff", "Brighton"] as const;
+const WEATHER_HIGHLIGHT_HOUR = "now";
+
+function getSeverityLabel(severity: Severity): string {
+  switch (severity) {
+    case "good":
+      return "On time";
+    case "minor":
+      return "Minor delays";
+    case "warning":
+      return "Watch";
+    case "severe":
+      return "Severe";
+  }
+}
 
 const iconMap: Record<PulseIconKey, LucideIcon> = {
   bus: Bus,
@@ -107,44 +130,49 @@ const travelRows: TravelRowsByMode = {
       icon: Train,
       title: "Temple Meads Station",
       meta: "Train services",
+      secondary: "Paddington 10:42 on time; Cardiff 10:48 +4",
       value: "3 min",
       severity: "good",
       tone: "green",
-      summary: "Station concourse and platforms are running normally.",
-      departure: "Next departure: Bath Spa at 14:18 from platform 4",
-      note: "No major service disruption reported.",
+      summary: "Station concourse is clear and the main board is broadly on time.",
+      departure: "Paddington 10:42 is on time from platform 9.",
+      note: "Cardiff 10:48 is running around 4 minutes late from platform 7.",
     },
     {
       id: "near-temple-gate",
       icon: Bus,
       title: "Temple Gate",
       meta: "Routes 70, 72, M1",
+      secondary: "70 to Horfield 1 min; 72 to Temple Meads 6 min",
       value: "1 min",
       severity: "good",
       tone: "green",
-      summary: "Closest stop for central bus services.",
-      departure: "Next departure: Route 70 in 3 min",
-      note: "Minor bunching possible northbound.",
+      summary: "This is the quickest boarding point for the northbound corridor.",
+      departure: "Route 70 to Horfield is due in 1 minute.",
+      note: "Route 72 to Temple Meads follows in 6 minutes with minor bunching possible.",
     },
     {
       id: "near-redcliffe",
       icon: Bus,
       title: "Redcliffe Way",
       meta: "Routes 8, 70, 72",
+      secondary: "8 to Temple Meads 4 min; 70 to UWE 11 min",
       value: "4 min",
       severity: "minor",
       tone: "amber",
-      summary: "Useful fallback stop for city routes.",
-      departure: "Next departure: Route 72 in 6 min",
-      note: "Short holds reported near Zetland Road.",
+      summary: "Useful fallback when Temple Gate is busy or delayed.",
+      departure: "Route 8 to Temple Meads is due in 4 minutes.",
+      note: "Route 70 to UWE follows in 11 minutes and may be held near Zetland Road.",
     },
   ],
   buses: [
     {
       id: "bus-70",
       icon: Bus,
-      title: "70 to UWE Frenchay",
-      meta: "Gloucester Road delays",
+      badge: "70",
+      title: "UWE Frenchay",
+      secondary: "Temple Gate 6 min; Stokes Croft 13 min",
+      meta: "Minor delay · Gloucester Road",
       value: "6 min",
       severity: "minor",
       tone: "amber",
@@ -155,8 +183,10 @@ const travelRows: TravelRowsByMode = {
     {
       id: "bus-72",
       icon: Bus,
-      title: "72 to Temple Meads",
-      meta: "Short holds near Zetland Road",
+      badge: "72",
+      title: "Temple Meads",
+      secondary: "Broadmead 9 min; Temple Meads 16 min",
+      meta: "Short holds · Zetland Road",
       value: "9 min",
       severity: "minor",
       tone: "amber",
@@ -167,7 +197,9 @@ const travelRows: TravelRowsByMode = {
     {
       id: "bus-8",
       icon: Bus,
-      title: "8 to Clifton",
+      badge: "8",
+      title: "Clifton",
+      secondary: "Centre 4 min; Clifton Down 18 min",
       meta: "Normal service",
       value: "4 min",
       severity: "good",
@@ -179,7 +211,9 @@ const travelRows: TravelRowsByMode = {
     {
       id: "bus-m1",
       icon: Bus,
-      title: "M1 to Cribbs Causeway",
+      badge: "M1",
+      title: "Cribbs Causeway",
+      secondary: "Temple Gate 7 min; City Centre 12 min",
       meta: "Normal service",
       value: "7 min",
       severity: "good",
@@ -188,6 +222,20 @@ const travelRows: TravelRowsByMode = {
       departure: "Next departure: 14:13",
       note: "Board at Temple Gate for the quickest option.",
     },
+    {
+      id: "bus-2",
+      icon: Bus,
+      badge: "2",
+      title: "Stockwood",
+      meta: "South Bristol corridor",
+      secondary: "Broad Quay 5 min; Stockwood 24 min",
+      value: "5 min",
+      severity: "good",
+      tone: "green",
+      summary: "A steady southbound option through the centre.",
+      departure: "Next departure: 14:10",
+      note: "Running close to timetable with no major reported holds.",
+    },
   ],
   trains: [
     {
@@ -195,6 +243,7 @@ const travelRows: TravelRowsByMode = {
       icon: Train,
       title: "Bath Spa",
       meta: "Temple Meads platform 4",
+      secondary: "10:18 stopping service; doors in 7 min",
       value: "14:18",
       severity: "good",
       tone: "green",
@@ -207,24 +256,39 @@ const travelRows: TravelRowsByMode = {
       icon: Train,
       title: "Cardiff Central",
       meta: "Temple Meads platform 7",
+      secondary: "10:27 fast service; +4 expected",
       value: "14:27",
-      severity: "good",
-      tone: "green",
-      summary: "Reported on time.",
+      severity: "minor",
+      tone: "amber",
+      summary: "A short delay is showing on the board.",
       departure: "Boarding in 16 min",
-      note: "Mainline service is steady this afternoon.",
+      note: "Current estimate is around 4 minutes down leaving Bristol.",
     },
     {
       id: "train-weston",
       icon: Train,
       title: "Weston-super-Mare",
       meta: "Temple Meads platform 2",
+      secondary: "10:40 local service; boarding shortly",
       value: "14:40",
       severity: "minor",
       tone: "amber",
       summary: "Minor delay possible.",
       departure: "Boarding in 29 min",
       note: "Allow a few extra minutes for platform access.",
+    },
+    {
+      id: "train-paddington",
+      icon: Train,
+      title: "London Paddington",
+      meta: "Temple Meads platform 9",
+      secondary: "10:46 intercity; on time",
+      value: "14:46",
+      severity: "good",
+      tone: "green",
+      summary: "Intercity departure is on the board and loading normally.",
+      departure: "Boarding in 35 min",
+      note: "Good fallback for long-distance eastbound travel this hour.",
     },
   ],
   roads: [
@@ -233,6 +297,7 @@ const travelRows: TravelRowsByMode = {
       icon: Car,
       title: "A38",
       meta: "Gloucester Road slow northbound",
+      secondary: "Long Ashton to Stokes Croft running 8 min slow",
       value: "Busy",
       severity: "warning",
       tone: "amber",
@@ -245,6 +310,7 @@ const travelRows: TravelRowsByMode = {
       icon: Route,
       title: "Central bus lanes",
       meta: "Busiest through Broadmead",
+      secondary: "Bus priority still moving but cars are bunching",
       value: "Slow",
       severity: "warning",
       tone: "amber",
@@ -257,12 +323,26 @@ const travelRows: TravelRowsByMode = {
       icon: Car,
       title: "M32",
       meta: "Main approach clear",
+      secondary: "Approach traffic normal; no incident signals",
       value: "Clear",
       severity: "good",
       tone: "green",
       summary: "No major queues reported into the city.",
       departure: "Approach time is normal",
       note: "No collision or closure currently reported.",
+    },
+    {
+      id: "road-redcliffe",
+      icon: Car,
+      title: "Redcliffe Hill",
+      meta: "Harbourside and station approach",
+      secondary: "Intermittent queueing at the bridge junction",
+      value: "Watch",
+      severity: "minor",
+      tone: "amber",
+      summary: "Approach traffic is moving, but bunching near the bridge lights.",
+      departure: "Average delay: 3-5 min",
+      note: "Use Temple Way if you are cutting across the station side of town.",
     },
   ],
   air: [
@@ -305,9 +385,320 @@ const travelRows: TravelRowsByMode = {
   ],
 };
 
+const cityVariants: Record<string, CityVariant> = {
+  Bristol: {
+    currentWeather: {
+      temp: 14,
+      condition: "Light rain",
+      feelsLike: 12,
+      summary: "Light rain easing later across central Bristol.",
+      dryWindow: "Best dry window: 16:30-18:00",
+      dryAdvice: "Good timing for a walk or cycle across town.",
+    },
+    disruption: {
+      headline: "Buses are moving, but Gloucester Road is slower than usual.",
+      metadata: "70, 72 and Temple Gate affected",
+      routes: ["70", "72"],
+      nearbyStop: "Temple Gate",
+      operationalDetail: "Short holds are building around Zetland Road, but Temple Meads departures are otherwise steady.",
+      updated: "Last updated 4 min ago",
+    },
+    nearbyRows: travelRows.nearby,
+    roadsRows: travelRows.roads,
+    airRows: travelRows.air,
+    pulseOverrides: {},
+    hourlyTempShift: 0,
+  },
+  Bath: {
+    currentWeather: {
+      temp: 15,
+      condition: "Light showers",
+      feelsLike: 13,
+      summary: "Showers are passing through Bath, with a calmer spell later.",
+      dryWindow: "Best dry window: 17:00-18:30",
+      dryAdvice: "Drier conditions should settle around the station and abbey quarter.",
+    },
+    disruption: {
+      headline: "Bus and rail links are moving, but Dorchester Street is a little slower than usual.",
+      metadata: "D1, U1 and Bath Spa forecourt affected",
+      routes: ["D1", "U1"],
+      nearbyStop: "Bath Spa",
+      operationalDetail: "Short bus holds are building on Dorchester Street while rail departures remain broadly on time.",
+      updated: "Last updated 4 min ago",
+    },
+    nearbyRows: [
+      { id: "bath-spa", icon: Train, title: "Bath Spa Station", meta: "Rail services", value: "2 min", severity: "good", tone: "green", summary: "The concourse is moving normally through the afternoon.", departure: "Next departure: Bristol Temple Meads at 14:24", note: "Fast local rail links are holding time." },
+      { id: "bath-dorchester", icon: Bus, title: "Dorchester Street", meta: "Routes D1, U1, 39", value: "1 min", severity: "minor", tone: "amber", summary: "Main stop for buses along the station frontage.", departure: "Next departure: U1 in 2 min", note: "Expect short holds towards Manvers Street." },
+      { id: "bath-broad", icon: Bus, title: "Broad Street", meta: "Routes 3, 6, 19", value: "5 min", severity: "good", tone: "green", summary: "Useful fallback stop for the north side of the centre.", departure: "Next departure: Route 6 in 6 min", note: "Queues are lighter away from the station frontage." },
+    ],
+    roadsRows: [
+      { id: "bath-a36", icon: Car, title: "A36", meta: "Wells Road moving steadily", value: "Busy", severity: "minor", tone: "amber", summary: "Expect a slower run around the station approach.", departure: "Average delay: 5 min", note: "Most delay is at Dorchester Street junctions." },
+      { id: "bath-centre", icon: Route, title: "City centre", meta: "Bus priority streets active", value: "Slow", severity: "warning", tone: "amber", summary: "Movement is steady but compact through the core.", departure: "Average delay: 4 min", note: "Avoid short car hops around the abbey quarter." },
+      { id: "bath-a46", icon: Car, title: "A46", meta: "Northern approach clear", value: "Clear", severity: "good", tone: "green", summary: "No major congestion reported on the main northern approach.", departure: "Approach time is normal", note: "Traffic improves quickly beyond London Road." },
+    ],
+    airRows: [
+      { id: "bath-air-centre", icon: Leaf, title: "Central Bath", meta: "AQI 24, comfortable walking", value: "Good", severity: "good", tone: "green", summary: "Clean conditions across the compact centre.", departure: "Pollen: low", note: "Good conditions for a short walk between the station and abbey." },
+      { id: "bath-air-river", icon: Droplets, title: "River corridor", meta: "Fresh after showers", value: "Good", severity: "good", tone: "green", summary: "Rain has kept particulates down near the river.", departure: "Pollen: low", note: "Pavements may still be slick along the towpath." },
+      { id: "bath-air-note", icon: Leaf, title: "Local note", meta: "Lower traffic side streets", value: "Fine", severity: "good", tone: "green", summary: "Air feels clearer away from the station frontage.", departure: "AQI 22", note: "Best for walking via Manvers Street and North Parade." },
+    ],
+    pulseOverrides: {
+      transport: {
+        status: "Minor delays",
+        detail: "Dorchester Street busiest near Bath Spa",
+        detailTitle: "Bus access is slightly slower around Bath Spa.",
+        detailBody: "D1 and U1 are seeing short holds on the station frontage, while rail departures remain usable.",
+      },
+      roads: {
+        status: "Slow in places",
+        detail: "A36 and city-centre streets busiest",
+        detailTitle: "Central Bath is moving, but compact roads are filling up.",
+        detailBody: "The station approach and abbey-quarter streets are seeing the heaviest load this afternoon.",
+      },
+    },
+    hourlyTempShift: 1,
+  },
+  London: {
+    currentWeather: {
+      temp: 18,
+      condition: "Cloudy breaks",
+      feelsLike: 17,
+      summary: "Showers are fragmenting across central London.",
+      dryWindow: "Best dry window: 17:30-19:00",
+      dryAdvice: "A steadier dry spell should open across the inner core early evening.",
+    },
+    disruption: {
+      headline: "Most central services are moving, but Euston Road is slower than usual.",
+      metadata: "205, 214 and Euston Station affected",
+      routes: ["205", "214"],
+      nearbyStop: "Euston Station",
+      operationalDetail: "Road delays are affecting bus reliability around Euston, while Underground services are broadly steady.",
+      updated: "Last updated 4 min ago",
+    },
+    nearbyRows: [
+      { id: "ldn-euston", icon: Train, title: "Euston Station", meta: "Rail and Underground", value: "3 min", severity: "good", tone: "green", summary: "Mainline and Tube entrances are operating normally.", departure: "Next departure: Milton Keynes Central at 14:21", note: "Victoria and Northern line access remains straightforward." },
+      { id: "ldn-kingsx", icon: Train, title: "King's Cross St Pancras", meta: "National rail and Tube", value: "7 min", severity: "good", tone: "green", summary: "A reliable fallback interchange nearby.", departure: "Next departure: Cambridge at 14:28", note: "Concourse is busy but moving cleanly." },
+      { id: "ldn-euston-bus", icon: Bus, title: "Euston Bus Station", meta: "Routes 205, 214, 253", value: "2 min", severity: "minor", tone: "amber", summary: "Key bus services are still boarding normally.", departure: "Next departure: Route 205 in 4 min", note: "Road delays are building towards Euston Road." },
+    ],
+    roadsRows: [
+      { id: "ldn-euston-road", icon: Car, title: "Euston Road", meta: "Westbound traffic bunching", value: "Busy", severity: "warning", tone: "amber", summary: "Expect a slower run around the station frontage.", departure: "Average delay: 8 min", note: "Buses are being held at multiple junctions." },
+      { id: "ldn-inner-ring", icon: Route, title: "Inner Ring Road", meta: "Paddington to King's Cross slower", value: "Slow", severity: "warning", tone: "amber", summary: "Traffic is flowing but under pressure through the inner core.", departure: "Average delay: 6 min", note: "Use rail where possible for short east-west trips." },
+      { id: "ldn-north", icon: Car, title: "A1 approach", meta: "Northern approach steady", value: "Clear", severity: "good", tone: "green", summary: "No major incident reported on the core northern approach.", departure: "Approach time is normal", note: "Queues thicken only closer to Euston." },
+    ],
+    airRows: [
+      { id: "ldn-air-centre", icon: Leaf, title: "Central London", meta: "AQI 36, workable outdoors", value: "Fair", severity: "minor", tone: "amber", summary: "Air is usable, but busier streets feel heavier.", departure: "Pollen: medium", note: "Side streets are more comfortable than the ring road edges." },
+      { id: "ldn-air-river", icon: Leaf, title: "River corridor", meta: "Breezier along the Thames", value: "Good", severity: "good", tone: "green", summary: "Air improves closer to the waterfront.", departure: "AQI 30", note: "A better option for a longer walk later." },
+      { id: "ldn-air-note", icon: Droplets, title: "Local note", meta: "Showers have helped clear particulates", value: "Good", severity: "good", tone: "green", summary: "Recent rain has improved conditions slightly.", departure: "Pollen: medium", note: "Best outdoor comfort should come after 17:30." },
+    ],
+    pulseOverrides: {
+      transport: {
+        status: "Slow in places",
+        detail: "Euston Road affecting central buses",
+        detailTitle: "Road pressure is feeding into central bus timings.",
+        detailBody: "Services remain usable, but surface transport is less reliable around Euston this afternoon.",
+      },
+    },
+    hourlyTempShift: 4,
+  },
+  Manchester: {
+    currentWeather: {
+      temp: 16,
+      condition: "Light showers",
+      feelsLike: 14,
+      summary: "Showers are drifting through central Manchester.",
+      dryWindow: "Best dry window: 17:15-18:45",
+      dryAdvice: "The clearest period should open across the centre after the next shower band.",
+    },
+    disruption: {
+      headline: "Trams and buses are moving, but Portland Street is slower than usual.",
+      metadata: "V1, 192 and Piccadilly Gardens affected",
+      routes: ["V1", "192"],
+      nearbyStop: "Piccadilly Gardens",
+      operationalDetail: "Surface routes are seeing short holds on the core corridor, while Metrolink remains steady.",
+      updated: "Last updated 4 min ago",
+    },
+    nearbyRows: [
+      { id: "man-piccadilly", icon: Train, title: "Manchester Piccadilly", meta: "Rail and Metrolink", value: "4 min", severity: "good", tone: "green", summary: "Mainline and tram interchange is operating normally.", departure: "Next departure: Leeds at 14:26", note: "Concourse is busy but moving cleanly." },
+      { id: "man-gardens", icon: TramFront, title: "Piccadilly Gardens", meta: "Trams and city buses", value: "2 min", severity: "minor", tone: "amber", summary: "Core city stop for the busiest local connections.", departure: "Next departure: Metrolink to Altrincham in 3 min", note: "Bus boarding is slightly slower on Portland Street." },
+      { id: "man-shudehill", icon: Bus, title: "Shudehill", meta: "Routes 8, 17, 41", value: "6 min", severity: "good", tone: "green", summary: "Useful fallback interchange to the north of the core.", departure: "Next departure: Route 17 in 5 min", note: "Queues are lighter than around Piccadilly Gardens." },
+    ],
+    roadsRows: travelRows.roads,
+    airRows: travelRows.air,
+    pulseOverrides: {
+      transport: {
+        status: "Minor delays",
+        detail: "Portland Street slowing surface routes",
+        detailTitle: "Surface transport is a little slower through the city core.",
+        detailBody: "Trams remain steady, but buses are seeing short holds around Piccadilly Gardens.",
+      },
+    },
+    hourlyTempShift: 2,
+  },
+  Edinburgh: {
+    currentWeather: {
+      temp: 13,
+      condition: "Cloudy",
+      feelsLike: 11,
+      summary: "Cloud cover is holding over central Edinburgh with a drier spell later.",
+      dryWindow: "Best dry window: 16:45-18:15",
+      dryAdvice: "A steadier dry period should open through the old town and Princes Street corridor.",
+    },
+    disruption: {
+      headline: "Most services are moving, but Princes Street is slower than usual.",
+      metadata: "Routes 11, 16 and Waverley approaches affected",
+      routes: ["11", "16"],
+      nearbyStop: "Waverley Bridge",
+      operationalDetail: "The main corridor is bunching slightly while rail services remain broadly reliable.",
+      updated: "Last updated 4 min ago",
+    },
+    nearbyRows: [
+      { id: "edi-waverley", icon: Train, title: "Waverley Station", meta: "Rail services", value: "3 min", severity: "good", tone: "green", summary: "Main rail access is operating normally.", departure: "Next departure: Glasgow Queen Street at 14:20", note: "Platforms are accessible without major crowding." },
+      { id: "edi-bridge", icon: Bus, title: "Waverley Bridge", meta: "Routes 11, 16, 26", value: "1 min", severity: "minor", tone: "amber", summary: "Core stop for city centre bus movements.", departure: "Next departure: Route 26 in 4 min", note: "Short holds are building on Princes Street." },
+      { id: "edi-standrews", icon: TramFront, title: "St Andrew Square", meta: "Tram and bus links", value: "5 min", severity: "good", tone: "green", summary: "A reliable fallback stop east of the core.", departure: "Next departure: Tram to Airport in 6 min", note: "Useful alternative when Princes Street is busy." },
+    ],
+    roadsRows: travelRows.roads,
+    airRows: travelRows.air,
+    pulseOverrides: {
+      roads: {
+        status: "Slow in places",
+        detail: "Princes Street and centre approaches busiest",
+        detailTitle: "The central corridor is moving, but slowly in places.",
+        detailBody: "Most pressure is on Princes Street and the approaches around Waverley Bridge.",
+      },
+    },
+    hourlyTempShift: -1,
+  },
+  Cardiff: {
+    currentWeather: {
+      temp: 15,
+      condition: "Showers easing",
+      feelsLike: 13,
+      summary: "Rain is easing across central Cardiff this afternoon.",
+      dryWindow: "Best dry window: 16:30-18:00",
+      dryAdvice: "The city centre should feel drier through the late afternoon.",
+    },
+    disruption: {
+      headline: "Bus and rail links are moving, but Newport Road is slower than usual.",
+      metadata: "Routes 30, 44 and Queen Street affected",
+      routes: ["30", "44"],
+      nearbyStop: "Queen Street",
+      operationalDetail: "Surface routes are seeing short delays on Newport Road while rail services remain steady.",
+      updated: "Last updated 4 min ago",
+    },
+    nearbyRows: [
+      { id: "cdf-central", icon: Train, title: "Cardiff Central", meta: "Rail services", value: "4 min", severity: "good", tone: "green", summary: "Mainline services are broadly steady.", departure: "Next departure: Swansea at 14:29", note: "Station circulation is moving normally." },
+      { id: "cdf-queen", icon: Train, title: "Queen Street", meta: "Valleys and local rail", value: "3 min", severity: "good", tone: "green", summary: "Useful city-centre rail fallback.", departure: "Next departure: Caerphilly at 14:23", note: "Good option for short local rail hops." },
+      { id: "cdf-newport", icon: Bus, title: "Newport Road", meta: "Routes 30, 44, 45", value: "2 min", severity: "minor", tone: "amber", summary: "Key bus corridor into the eastern side of the centre.", departure: "Next departure: Route 44 in 5 min", note: "Traffic holds are slowing arrivals slightly." },
+    ],
+    roadsRows: travelRows.roads,
+    airRows: travelRows.air,
+    pulseOverrides: {
+      transport: {
+        status: "Minor delays",
+        detail: "Newport Road affecting city buses",
+        detailTitle: "Bus timings are a little slower through the eastern corridor.",
+        detailBody: "Rail services remain useful, but city buses are bunching along Newport Road.",
+      },
+    },
+    hourlyTempShift: 1,
+  },
+  Brighton: {
+    currentWeather: {
+      temp: 17,
+      condition: "Bright intervals",
+      feelsLike: 16,
+      summary: "Showers are clearing and brighter breaks are pushing across Brighton.",
+      dryWindow: "Best dry window: 17:00-19:00",
+      dryAdvice: "The seafront and station corridor should both feel drier into early evening.",
+    },
+    disruption: {
+      headline: "Most local links are moving, but London Road is slower than usual.",
+      metadata: "Routes 5, 7 and Brighton Station affected",
+      routes: ["5", "7"],
+      nearbyStop: "Brighton Station",
+      operationalDetail: "Local buses are slowing on London Road while rail services remain broadly steady.",
+      updated: "Last updated 4 min ago",
+    },
+    nearbyRows: [
+      { id: "btn-station", icon: Train, title: "Brighton Station", meta: "Rail services", value: "3 min", severity: "good", tone: "green", summary: "Station access is moving normally.", departure: "Next departure: London Victoria at 14:25", note: "Fastest option for northbound travel." },
+      { id: "btn-clocktower", icon: Bus, title: "Clock Tower", meta: "Routes 5, 7, 12", value: "2 min", severity: "minor", tone: "amber", summary: "Main stop for the city-centre corridor.", departure: "Next departure: Route 7 in 3 min", note: "Expect slightly slower arrivals on London Road." },
+      { id: "btn-seafront", icon: Bus, title: "Old Steine", meta: "Seafront bus links", value: "6 min", severity: "good", tone: "green", summary: "Useful interchange for the eastern seafront.", departure: "Next departure: Route 12 in 5 min", note: "Conditions are calmer once you are clear of the station area." },
+    ],
+    roadsRows: travelRows.roads,
+    airRows: travelRows.air,
+    pulseOverrides: {
+      weather: {
+        status: "Brighter spells",
+        detail: "Dryer windows opening by the seafront",
+        detailTitle: "Brighter breaks are building across Brighton.",
+        detailBody: "The rain band is clearing east, leaving better outdoor conditions later this afternoon.",
+      },
+    },
+    hourlyTempShift: 3,
+  },
+};
+
+const commandCityLookup = new Map(cityOptions.map((cityOption) => [cityOption.name.toLowerCase(), cityOption]));
+
+function getCityVariant(cityName: string): CityVariant {
+  return cityVariants[cityName] ?? cityVariants.Bristol;
+}
+
+function buildCityDashboardData(city: CityOption): CityDashboardData {
+  const variant = getCityVariant(city.name);
+  const pulseData = pulseItems.map((pulseItem) => ({
+    ...pulseItem,
+    ...(variant.pulseOverrides[pulseItem.id] ?? {}),
+  }));
+  const hourlyData = hourlyForecast.map((hour) => ({
+    ...hour,
+    temp: hour.temp + variant.hourlyTempShift,
+    feelsLike: hour.feelsLike + variant.hourlyTempShift,
+  }));
+
+  return {
+    currentWeather: variant.currentWeather,
+    pulseItems: pulseData,
+    travelRows: {
+      nearby: variant.nearbyRows,
+      buses: travelRows.buses,
+      trains: travelRows.trains,
+      roads: variant.roadsRows,
+      air: variant.airRows,
+    },
+    disruption: variant.disruption,
+    hourlyForecast: hourlyData,
+  };
+}
+
 type NavigateHandler = (path: RoutePath) => void;
 type ToggleSavedHandler = (item: SavedItem) => void;
-type SetSavedState = Dispatch<SetStateAction<SavedState>>;
+
+interface DisruptionState {
+  headline: string;
+  metadata: string;
+  routes: [string, string];
+  nearbyStop: string;
+  operationalDetail: string;
+  updated: string;
+}
+
+interface CityDashboardData {
+  currentWeather: WeatherSnapshot;
+  pulseItems: CityPulseItem[];
+  travelRows: TravelRowsByMode;
+  disruption: DisruptionState;
+  hourlyForecast: HourlyForecastHour[];
+}
+
+interface CityVariant {
+  currentWeather: WeatherSnapshot;
+  disruption: DisruptionState;
+  nearbyRows: TravelRowsByMode["nearby"];
+  roadsRows: TravelRowsByMode["roads"];
+  airRows: TravelRowsByMode["air"];
+  pulseOverrides: Partial<Record<PulseId, Pick<CityPulseItem, "status" | "detail" | "detailTitle" | "detailBody">>>;
+  hourlyTempShift: number;
+}
 
 function getRoute(): RoutePath {
   const hashPath = window.location.hash.replace(/^#/, "");
@@ -353,6 +744,7 @@ function App() {
   const [city, setCity] = useLocalStorageState<CityOption>("citynow-city", cityOptions[0]!);
   const [savedIds, setSavedIds] = useLocalStorageState<SavedState>("citynow-saved", []);
   const [drawerItem, setDrawerItem] = useState<DrawerItem>(null);
+  const [cityCommandOpen, setCityCommandOpen] = useState(false);
 
   useEffect(() => {
     const syncRoute = () => setRoute(getRoute());
@@ -379,66 +771,87 @@ function App() {
     const allItems = [...events, ...places];
     return allItems.filter((item) => savedIds.includes(item.id));
   }, [savedIds]);
+  const dashboardData = useMemo(() => buildCityDashboardData(city), [city]);
+
+  const handleCitySelect = (cityName: string) => {
+    const nextCity = commandCityLookup.get(cityName.toLowerCase());
+    if (!nextCity) return;
+    setCity(nextCity);
+    setCityCommandOpen(false);
+  };
 
   return (
-    <MotionConfig reducedMotion="user">
-      <LayoutGroup id="citynow-shell">
-        <div className="page-shell">
-          <div className="app-surface citynow-shell">
-            <TopNav route={route} city={city} onCityChange={setCity} onNavigate={navigate} />
-            <main className="route-frame">
-              {route === "/today" && (
-                <TodayPage
-                  city={city}
-                  onNavigate={navigate}
-                  savedIds={savedIds}
-                  onToggleSaved={toggleSaved}
-                  onOpenDrawer={(item) => setDrawerItem(item)}
-                />
-              )}
-              {route === "/weather" && <WeatherPage city={city} />}
-              {route === "/explore" && (
-                <ExplorePage
-                  city={city}
-                  savedIds={savedIds}
-                  onToggleSaved={toggleSaved}
-                  onOpenDrawer={(item) => setDrawerItem(item)}
-                />
-              )}
-              {route === "/travel" && <TravelPage city={city} />}
-              {route === "/saved" && (
-                <SavedPage
-                  savedItems={savedItems}
-                  savedIds={savedIds}
-                  onToggleSaved={toggleSaved}
-                  onNavigate={navigate}
-                  onOpenDrawer={(item) => setDrawerItem(item)}
-                />
-              )}
-            </main>
+    <Tooltip.Provider delayDuration={80}>
+      <MotionConfig reducedMotion="user">
+        <LayoutGroup id="citynow-shell">
+          <div className="page-shell citynow-shell">
+            <div className="app-surface">
+              <TopNav
+                route={route}
+                city={city}
+                onCityCommandOpen={() => setCityCommandOpen(true)}
+                onNavigate={navigate}
+              />
+              <main className="route-frame">
+                {route === "/today" && (
+                  <TodayPage
+                    city={city}
+                    dashboardData={dashboardData}
+                    onNavigate={navigate}
+                    savedIds={savedIds}
+                    onToggleSaved={toggleSaved}
+                    onOpenDrawer={(item) => setDrawerItem(item)}
+                  />
+                )}
+                {route === "/weather" && <WeatherPage city={city} forecastHours={dashboardData.hourlyForecast} snapshot={dashboardData.currentWeather} />}
+                {route === "/explore" && (
+                  <ExplorePage
+                    city={city}
+                    savedIds={savedIds}
+                    onToggleSaved={toggleSaved}
+                    onOpenDrawer={(item) => setDrawerItem(item)}
+                  />
+                )}
+                {route === "/travel" && <TravelPage city={city} />}
+                {route === "/saved" && (
+                  <SavedPage
+                    savedItems={savedItems}
+                    savedIds={savedIds}
+                    onToggleSaved={toggleSaved}
+                    onNavigate={navigate}
+                    onOpenDrawer={(item) => setDrawerItem(item)}
+                  />
+                )}
+              </main>
+            </div>
+            <CityCommandDialog
+              city={city}
+              open={cityCommandOpen}
+              onOpenChange={setCityCommandOpen}
+              onSelectCity={handleCitySelect}
+            />
+            <DetailDrawer
+              item={drawerItem}
+              cityName={city.name}
+              saved={drawerItem ? savedIds.includes(drawerItem.id) : false}
+              onToggleSaved={toggleSaved}
+              onClose={() => setDrawerItem(null)}
+            />
           </div>
-          <DetailDrawer
-            item={drawerItem}
-            saved={drawerItem ? savedIds.includes(drawerItem.id) : false}
-            onToggleSaved={toggleSaved}
-            onClose={() => setDrawerItem(null)}
-          />
-        </div>
-      </LayoutGroup>
-    </MotionConfig>
+        </LayoutGroup>
+      </MotionConfig>
+    </Tooltip.Provider>
   );
 }
 
 interface TopNavProps {
   route: RoutePath;
   city: CityOption;
-  onCityChange: Dispatch<SetStateAction<CityOption>>;
+  onCityCommandOpen: () => void;
   onNavigate: NavigateHandler;
 }
 
-function TopNav({ route, city, onCityChange, onNavigate }: TopNavProps) {
-  const [open, setOpen] = useState(false);
-
+function TopNav({ route, city, onCityCommandOpen, onNavigate }: TopNavProps) {
   return (
     <header className="top-nav">
       <button className="brand" onClick={() => onNavigate("/today")} aria-label="CityNow home">
@@ -455,34 +868,18 @@ function TopNav({ route, city, onCityChange, onNavigate }: TopNavProps) {
             onClick={() => onNavigate(item.path)}
           >
             {item.label}
+            {route === item.path ? (
+              <motion.span className="nav-active-indicator" layoutId="citynow-nav-indicator" transition={MOTION_SWAP} />
+            ) : null}
           </button>
         ))}
       </nav>
       <div className="nav-actions">
-        <div className="city-menu">
-          <button className="city-button" onClick={() => setOpen((value) => !value)}>
-            <MapPin size={14} />
-            <span>{city.name}, UK</span>
-            <ChevronDown size={14} />
-          </button>
-          {open && (
-            <div className="city-dropdown">
-              {cityOptions.map((option) => (
-                <button
-                  key={option.name}
-                  className={option.name === city.name ? "selected" : ""}
-                  onClick={() => {
-                    onCityChange(option);
-                    setOpen(false);
-                  }}
-                >
-                  <span>{option.name}</span>
-                  <small>{option.tagline}</small>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <button className="city-button" onClick={onCityCommandOpen} aria-label="Open city search">
+          <MapPin size={14} />
+          <span>{city.name}, UK</span>
+          <ChevronDown size={14} />
+        </button>
         <button className="icon-button" aria-label="Notifications">
           <Bell size={15} />
         </button>
@@ -494,16 +891,94 @@ function TopNav({ route, city, onCityChange, onNavigate }: TopNavProps) {
   );
 }
 
+interface CityCommandDialogProps {
+  city: CityOption;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectCity: (cityName: string) => void;
+}
+
+function CityCommandDialog({ city, open, onOpenChange, onSelectCity }: CityCommandDialogProps) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <AnimatePresence>
+        {open ? (
+          <Dialog.Portal forceMount>
+            <Dialog.Overlay asChild>
+              <motion.div
+                className="command-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={MOTION_SWAP}
+              />
+            </Dialog.Overlay>
+            <Dialog.Content asChild>
+              <motion.div
+                className="command-content"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 4 }}
+                transition={MOTION_SWAP}
+              >
+                <Dialog.Title className="sr-only">Search a city</Dialog.Title>
+                <CommandPrimitive label="City search" className="command-root">
+                  <div className="command-input-shell">
+                    <MapPin size={15} />
+                    <CommandPrimitive.Input className="command-input" placeholder="Search a city…" />
+                  </div>
+                  <CommandPrimitive.List className="command-list">
+                    <CommandPrimitive.Empty className="command-empty">No city found.</CommandPrimitive.Empty>
+                    <CommandPrimitive.Group heading="Recent cities" className="command-group">
+                      {RECENT_CITY_NAMES.map((cityName) => (
+                        <CommandPrimitive.Item
+                          key={cityName}
+                          value={cityName}
+                          className="command-item"
+                          onSelect={onSelectCity}
+                        >
+                          <span>{cityName}</span>
+                          <small>{commandCityLookup.get(cityName.toLowerCase())?.tagline}</small>
+                          {city.name === cityName ? <span className="command-current">Current</span> : null}
+                        </CommandPrimitive.Item>
+                      ))}
+                    </CommandPrimitive.Group>
+                    <CommandPrimitive.Group heading="Popular cities" className="command-group">
+                      {POPULAR_CITY_NAMES.map((cityName) => (
+                        <CommandPrimitive.Item
+                          key={cityName}
+                          value={cityName}
+                          className="command-item"
+                          onSelect={onSelectCity}
+                        >
+                          <span>{cityName}</span>
+                          <small>{commandCityLookup.get(cityName.toLowerCase())?.tagline}</small>
+                          {city.name === cityName ? <span className="command-current">Current</span> : null}
+                        </CommandPrimitive.Item>
+                      ))}
+                    </CommandPrimitive.Group>
+                  </CommandPrimitive.List>
+                </CommandPrimitive>
+              </motion.div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        ) : null}
+      </AnimatePresence>
+    </Dialog.Root>
+  );
+}
+
 interface TodayPageProps {
   city: CityOption;
+  dashboardData: CityDashboardData;
   onNavigate: NavigateHandler;
   savedIds: SavedState;
   onToggleSaved: ToggleSavedHandler;
   onOpenDrawer: (item: SavedItem) => void;
 }
 
-function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }: TodayPageProps) {
-  const [selectedPulse, setSelectedPulse] = useState<PulseId>(pulseItems[0]!.id);
+function TodayPage({ city, dashboardData, onNavigate, savedIds, onToggleSaved, onOpenDrawer }: TodayPageProps) {
+  const [selectedPulse, setSelectedPulse] = useState<PulseId>(dashboardData.pulseItems[0]!.id);
   const [travelTab, setTravelTab] = useState<TravelSummaryTab>("Nearby");
   const [travelMode, setTravelMode] = useState<TravelMode>("transport");
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
@@ -549,14 +1024,14 @@ function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }: 
           <h1>{getGreeting()}, {city.name}</h1>
           <p>A useful read on the city before you head out.</p>
         </div>
-        <CurrentWeatherCard onClick={() => onNavigate("/weather")} />
+        <CurrentWeatherCard weather={dashboardData.currentWeather} onClick={() => onNavigate("/weather")} />
       </section>
 
       <section className="section-block">
         <h2>City pulse</h2>
         <LayoutGroup id="city-pulse">
           <div className="pulse-grid">
-            {pulseItems.map((item) => (
+            {dashboardData.pulseItems.map((item) => (
               <PulseStatusCard
                 key={item.id}
                 item={item}
@@ -566,7 +1041,7 @@ function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }: 
             ))}
           </div>
         </LayoutGroup>
-        <DisruptionAlert onNavigate={onNavigate} />
+        <DisruptionAlert disruption={dashboardData.disruption} onNavigate={onNavigate} />
       </section>
 
       <section className="today-main-grid today-utility-grid">
@@ -577,12 +1052,15 @@ function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }: 
           highlighted={focusTarget === "travel"}
           activeTab={travelTab}
           onTabChange={setTravelTab}
+          travelRows={dashboardData.travelRows}
           onNavigate={onNavigate}
         />
         <WeatherSummary
           ref={weatherRef}
           active={selectedPulse === "weather"}
           highlighted={focusTarget === "weather"}
+          snapshot={dashboardData.currentWeather}
+          hours={dashboardData.hourlyForecast}
           onNavigate={onNavigate}
         />
       </section>
@@ -596,7 +1074,7 @@ function TodayPage({ city, onNavigate, savedIds, onToggleSaved, onOpenDrawer }: 
         />
         <div className="side-list panel">
           <div className="section-title-row">
-            <h2>Tonight in Bristol</h2>
+            <h2>Tonight in {city.name}</h2>
             <button className="text-link" onClick={() => onNavigate("/explore")}>
               Open Explore
             </button>
@@ -630,16 +1108,19 @@ function getGreeting() {
 }
 
 interface CurrentWeatherCardProps {
+  weather: WeatherSnapshot;
   onClick: () => void;
 }
 
-function CurrentWeatherCard({ onClick }: CurrentWeatherCardProps) {
+function CurrentWeatherCard({ weather, onClick }: CurrentWeatherCardProps) {
+  const WeatherIcon = /rain|shower/i.test(weather.condition) ? CloudRain : CloudSun;
+
   return (
     <button className="weather-mini" onClick={onClick}>
-      <CloudRain className="weather-cloud" size={42} />
-      <span className="weather-temp">14°</span>
-      <span className="weather-meta">Light rain</span>
-      <span className="weather-feels">Feels like 12°</span>
+      <WeatherIcon className="weather-cloud" size={42} />
+      <span className="weather-temp">{weather.temp}°</span>
+      <span className="weather-meta">{weather.condition}</span>
+      <span className="weather-feels">Feels like {weather.feelsLike}°</span>
     </button>
   );
 }
@@ -676,10 +1157,11 @@ function PulseStatusCard({ item, selected, onClick }: PulseStatusCardProps) {
 }
 
 interface DisruptionAlertProps {
+  disruption: DisruptionState;
   onNavigate: NavigateHandler;
 }
 
-function DisruptionAlert({ onNavigate }: DisruptionAlertProps) {
+function DisruptionAlert({ disruption, onNavigate }: DisruptionAlertProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -694,8 +1176,8 @@ function DisruptionAlert({ onNavigate }: DisruptionAlertProps) {
         >
           <TriangleAlert size={17} />
           <span>
-            <strong>Buses are moving, but Gloucester Road is slower than usual.</strong>
-            <small>70, 72 and Temple Gate affected · Last updated 4 min ago · Click for details</small>
+            <strong>{disruption.headline}</strong>
+            <small>{disruption.metadata} · {disruption.updated} · Click for details</small>
           </span>
           <ChevronDown className="alert-chevron" size={16} />
         </motion.button>
@@ -713,10 +1195,10 @@ function DisruptionAlert({ onNavigate }: DisruptionAlertProps) {
             exit={{ opacity: 0, y: 3 }}
             transition={MOTION_SWAP}
           >
-            <span><strong>70</strong> Temple Gate to Gloucester Road</span>
-            <span><strong>72</strong> Redcliffe Way short holds</span>
-            <span><strong>Nearby stop</strong> Temple Gate, 1 min walk</span>
-            <small>Last updated 4 min ago</small>
+            <span><strong>{disruption.routes[0]}</strong> Route affected by local congestion</span>
+            <span><strong>{disruption.routes[1]}</strong> Short holds through the local corridor</span>
+            <span><strong>Nearby stop</strong> {disruption.nearbyStop}</span>
+            <small>{disruption.operationalDetail} · {disruption.updated}</small>
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -730,11 +1212,12 @@ interface TravelSummaryProps {
   highlighted: boolean;
   activeTab: TravelSummaryTab;
   onTabChange: Dispatch<SetStateAction<TravelSummaryTab>>;
+  travelRows: TravelRowsByMode;
   onNavigate: NavigateHandler;
 }
 
 const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function TravelSummary(
-  { mode, activePulse, highlighted, activeTab, onTabChange, onNavigate },
+  { mode, activePulse, highlighted, activeTab, onTabChange, travelRows, onNavigate },
   ref,
 ) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -753,10 +1236,16 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
 
   const title = mode === "roads" ? "Roads now" : mode === "air" ? "Air quality now" : "Travel now";
   const sentence = mode === "roads"
-    ? "Slow on the A38 and around central bus lanes. No major road closures."
+    ? "Watch the main approaches and central corridors. No major road closures."
     : mode === "air"
-      ? "Air quality is good across Bristol. Rain has kept pollution low."
-      : "Most services are running. Expect bus delays around Gloucester Road.";
+      ? "Current rating, pollen and practical guidance for the local area."
+      : activeTab === "Buses"
+        ? "Live bus conditions with next arrivals and service state."
+        : activeTab === "Trains"
+          ? "Rail departures with on-time and delay state."
+          : activeTab === "Roads"
+            ? "Compact road conditions without leaving the transport surface."
+            : "Most services are running. Expect bus delays around the main corridor.";
   const active = activePulse === "transport" || activePulse === "roads" || activePulse === "air";
 
   return (
@@ -809,11 +1298,15 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
                     transition={MOTION_QUICK}
                   >
                     <row.icon size={18} className={`tone-${row.tone}`} />
-                    <span>
-                      <strong>{row.title}</strong>
+                    <span className="travel-row-copy">
+                      <strong>{row.badge ? <span className="travel-badge">{row.badge}</span> : null}{row.title}</strong>
                       <small>{row.meta}</small>
+                      {row.secondary ? <b>{row.secondary}</b> : null}
                     </span>
-                    <em className={row.tone}>{row.value}</em>
+                    <em className={`travel-row-status ${row.tone}`}>
+                      <strong>{row.value}</strong>
+                      <small>{getSeverityLabel(row.severity)}</small>
+                    </em>
                     <ChevronRight size={16} className="travel-row-chevron" />
                   </motion.button>
                   <AnimatePresence initial={false}>
@@ -848,13 +1341,21 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
 interface WeatherSummaryProps {
   active: boolean;
   highlighted: boolean;
+  snapshot: WeatherSnapshot;
+  hours: HourlyForecastHour[];
   onNavigate: NavigateHandler;
 }
 
 const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(function WeatherSummary(
-  { active, highlighted, onNavigate },
+  { active, highlighted, snapshot, hours, onNavigate },
   ref,
 ) {
+  const [selectedHour, setSelectedHour] = useState<HourlyForecastHour>(hours[0] ?? hourlyForecast[0]!);
+
+  useEffect(() => {
+    setSelectedHour(hours.find((hour) => hour.id === WEATHER_HIGHLIGHT_HOUR) ?? hours[0] ?? hourlyForecast[0]!);
+  }, [hours]);
+
   return (
     <motion.section
       ref={ref}
@@ -870,18 +1371,24 @@ const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(functi
         </button>
       </div>
       <div className="weather-hero-line">
-        <CloudRain size={48} />
+        {selectedHour.icon === "sun" ? <CloudSun size={48} /> : <CloudRain size={48} />}
         <div>
-          <strong>14°</strong>
-          <span>Light rain easing later</span>
+          <strong>{selectedHour.temp}°</strong>
+          <span>{selectedHour.note}</span>
         </div>
       </div>
-      <ForecastStrip hours={hourlyForecast.slice(0, 6)} compact continuous selected="now" />
+      <ForecastStrip
+        hours={hours.slice(0, 6)}
+        compact
+        continuous
+        selected={selectedHour.id}
+        onSelect={setSelectedHour}
+      />
       <div className="callout coral weather-advice">
         <Umbrella size={18} />
         <div>
-          <strong>Best dry window: 16:30-18:00</strong>
-          <span>Good timing for a walk or cycle across town.</span>
+          <strong>{snapshot.dryWindow}</strong>
+          <span>{selectedHour.id === WEATHER_HIGHLIGHT_HOUR ? snapshot.dryAdvice : `${selectedHour.condition} with ${selectedHour.rain}% rain risk and feels like ${selectedHour.feelsLike}°.`}</span>
         </div>
       </div>
     </motion.section>
@@ -890,10 +1397,16 @@ const WeatherSummary = React.forwardRef<HTMLElement, WeatherSummaryProps>(functi
 
 interface WeatherPageProps {
   city: CityOption;
+  forecastHours: HourlyForecastHour[];
+  snapshot: WeatherSnapshot;
 }
 
-function WeatherPage({ city }: WeatherPageProps) {
-  const [selectedHour, setSelectedHour] = useState<HourlyForecastHour>(hourlyForecast[0]!);
+function WeatherPage({ city, forecastHours, snapshot }: WeatherPageProps) {
+  const [selectedHour, setSelectedHour] = useState<HourlyForecastHour>(forecastHours[0] ?? hourlyForecast[0]!);
+
+  useEffect(() => {
+    setSelectedHour(forecastHours[0] ?? hourlyForecast[0]!);
+  }, [forecastHours]);
 
   return (
     <div className="page-content fade-in">
@@ -902,11 +1415,11 @@ function WeatherPage({ city }: WeatherPageProps) {
           <h1>{city.name} weather</h1>
           <p>Plan around the useful bits, not just the temperature.</p>
         </div>
-        <CurrentWeatherCard onClick={() => {}} />
+        <CurrentWeatherCard weather={snapshot} onClick={() => {}} />
       </section>
       <section className="panel weather-page-panel">
         <ForecastStrip
-          hours={hourlyForecast}
+          hours={forecastHours}
           selected={selectedHour.id}
           onSelect={setSelectedHour}
         />
@@ -1171,8 +1684,13 @@ function FeaturedEvent({ event, saved, onToggleSaved, onOpenDrawer }: FeaturedEv
         <motion.button className="featured-title-hit" onClick={() => onOpenDrawer(event)}>
           <h2>{event.title}</h2>
         </motion.button>
-        <p><MapPin size={14} /> {event.venue}</p>
+        <p className="featured-description">{event.description}</p>
+        <p><MapPin size={14} /> {event.venue} · {event.distance}</p>
         <p><CalendarDays size={14} /> {event.time}</p>
+        <div className="featured-meta-stack">
+          <span>{event.ticketInfo}</span>
+          <span>{event.availability}</span>
+        </div>
         <div className="button-row">
           <PrimaryButton onClick={() => onOpenDrawer(event)}>View details</PrimaryButton>
           <SaveButton item={event} saved={saved} onToggleSaved={onToggleSaved} />
@@ -1199,9 +1717,19 @@ function EventRow({ event, saved, onToggleSaved, onOpenDrawer }: EventRowProps) 
         transition={MOTION_QUICK}
       >
         <motion.img layoutId={`drawer-image-${event.id}`} src={event.image} alt="" />
-        <span>
+        <span className="event-row-copy">
           <strong>{event.title}</strong>
-          <small>{event.time} · {event.venue}</small>
+          {event.type === "event" ? (
+            <>
+              <b>{event.time}</b>
+              <small>{event.venue}</small>
+            </>
+          ) : (
+            <>
+              <b>{event.category}</b>
+              <small>{event.neighbourhood}</small>
+            </>
+          )}
         </span>
       </motion.button>
       <SaveButton item={event} saved={saved} onToggleSaved={onToggleSaved} />
@@ -1268,70 +1796,68 @@ function SaveButton({ item, saved, onToggleSaved }: SaveButtonProps) {
 
 interface DetailDrawerProps {
   item: DrawerItem;
+  cityName: string;
   saved: boolean;
   onToggleSaved: ToggleSavedHandler;
   onClose: () => void;
 }
 
-function DetailDrawer({ item, saved, onToggleSaved, onClose }: DetailDrawerProps) {
-  const closeRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!item) return undefined;
-    closeRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [item, onClose]);
-
+function DetailDrawer({ item, cityName, saved, onToggleSaved, onClose }: DetailDrawerProps) {
   return (
-    <AnimatePresence>
-      {item ? (
-        <motion.div
-          className="drawer-backdrop"
-          onMouseDown={onClose}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={SHEET_TRANSITION}
-        >
-          <motion.aside
-            className="detail-drawer"
-            onMouseDown={(event) => event.stopPropagation()}
-            aria-modal="true"
-            role="dialog"
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 24 }}
-            transition={SHEET_TRANSITION}
-          >
-            <button ref={closeRef} className="drawer-close" onClick={onClose} aria-label="Close details">
-              <X size={18} />
-            </button>
-            <motion.img layoutId={`drawer-image-${item.id}`} src={item.image} alt="" />
-            <span className="event-meta">{item.date || item.category}</span>
-            <h2>{item.title}</h2>
-            <p>{item.description}</p>
-            <div className="drawer-facts">
-              <span><MapPin size={15} /> {item.venue || item.neighbourhood}</span>
-              <span><CalendarDays size={15} /> {item.time || item.hours}</span>
-            </div>
-            <div className="drawer-ticket-placeholder">
-              <strong>Tickets</strong>
-              <span>Placeholder action until live booking is connected.</span>
-            </div>
-            <div className="button-row">
-              <PrimaryButton onClick={() => {}}>
-                <ExternalLink size={15} /> Ticket placeholder
-              </PrimaryButton>
-              <SaveButton item={item} saved={saved} onToggleSaved={onToggleSaved} />
-            </div>
-          </motion.aside>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+    <Dialog.Root open={Boolean(item)} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <AnimatePresence>
+        {item ? (
+          <Dialog.Portal forceMount>
+            <Dialog.Overlay asChild>
+              <motion.div
+                className="drawer-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={SHEET_TRANSITION}
+              />
+            </Dialog.Overlay>
+            <Dialog.Content asChild>
+              <motion.aside
+                className="detail-drawer"
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 24 }}
+                transition={SHEET_TRANSITION}
+              >
+                <div className="drawer-topbar">
+                  <Dialog.Title className="sr-only">{item.title}</Dialog.Title>
+                  <Dialog.Close asChild>
+                    <button className="drawer-close" aria-label="Close details">
+                      <X size={18} />
+                    </button>
+                  </Dialog.Close>
+                </div>
+                <motion.img layoutId={`drawer-image-${item.id}`} src={item.image} alt="" />
+                <span className="event-meta">{item.type === "event" ? item.date : item.category}</span>
+                <h2>{item.title}</h2>
+                <p>{item.description}</p>
+                <div className="drawer-facts">
+                  <span><MapPin size={15} /> {item.type === "event" ? item.venue : item.neighbourhood}</span>
+                  <span><CalendarDays size={15} /> {item.type === "event" ? item.time : item.hours}</span>
+                  <span><Compass size={15} /> {item.type === "event" ? `${item.distance} from central ${cityName}` : `${item.neighbourhood} neighbourhood`}</span>
+                </div>
+                <div className="drawer-ticket-placeholder">
+                  <strong>{item.type === "event" ? item.ticketInfo : "Visit info"}</strong>
+                  <span>{item.type === "event" ? item.availability : "Website placeholder until live venue links are connected."}</span>
+                </div>
+                <div className="button-row">
+                  <PrimaryButton onClick={() => {}}>
+                    <ArrowUpRight size={15} /> Tickets / website
+                  </PrimaryButton>
+                  <SaveButton item={item} saved={saved} onToggleSaved={onToggleSaved} />
+                </div>
+              </motion.aside>
+            </Dialog.Content>
+          </Dialog.Portal>
+        ) : null}
+      </AnimatePresence>
+    </Dialog.Root>
   );
 }
 
@@ -1374,36 +1900,30 @@ function ForecastStrip({
   selected,
   onSelect,
 }: ForecastStripProps) {
-  const [hoveredHour, setHoveredHour] = useState<string | null>(null);
-
   return (
     <div className={`forecast-strip ${compact ? "compact" : ""} ${continuous ? "continuous" : ""}`}>
       {hours.map((hour) => (
-        <button
-          key={hour.id}
-          className={selected === hour.id ? "selected" : ""}
-          onClick={() => onSelect?.(hour)}
-          onMouseEnter={() => setHoveredHour(hour.id)}
-          onMouseLeave={() => setHoveredHour(null)}
-          onFocus={() => setHoveredHour(hour.id)}
-          onBlur={() => setHoveredHour(null)}
-        >
-          <span>{hour.label}</span>
-          {hour.icon === "sun" ? <CloudSun size={23} /> : <CloudRain size={23} />}
-          <strong>{hour.temp}°</strong>
-          <small>{hour.rain}%</small>
-          {continuous && hoveredHour === hour.id ? (
-            <motion.span
-              className="hour-tooltip"
-              initial={{ opacity: 0, y: 3 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 3 }}
-              transition={MOTION_SWAP}
+        <Tooltip.Root key={hour.id}>
+          <Tooltip.Trigger asChild>
+            <button
+              className={`${selected === hour.id ? "selected" : ""} ${hour.id === WEATHER_HIGHLIGHT_HOUR ? "current" : ""}`.trim()}
+              onClick={() => onSelect?.(hour)}
             >
-              {hour.condition} · {hour.wind}
-            </motion.span>
-          ) : null}
-        </button>
+              <span>{hour.label}</span>
+              {hour.icon === "sun" ? <CloudSun size={23} /> : <CloudRain size={23} />}
+              <strong>{hour.temp}°</strong>
+              <small>{hour.rain}%</small>
+            </button>
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content className="hour-tooltip" sideOffset={8}>
+              <strong>{hour.condition}</strong>
+              <span>{hour.rain}% rain</span>
+              <span>{hour.wind}</span>
+              <span>Feels like {hour.feelsLike}°</span>
+            </Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
       ))}
     </div>
   );
