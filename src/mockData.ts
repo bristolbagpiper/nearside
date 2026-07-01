@@ -1,4 +1,5 @@
 import type {
+  BriefingListItem,
   CityOption,
   CityPulseItem,
   DailyForecastDay,
@@ -70,6 +71,41 @@ export const pulseItems: CityPulseItem[] = [
     severity: "good",
     tone: "green",
     icon: "leaf",
+    target: "weather",
+  },
+];
+
+export const cityBriefingItems: BriefingListItem[] = [
+  {
+    id: "brief-crowds",
+    title: "Harbourside and Ashton Court busier later",
+    detail: "Evening footfall builds after 18:00 around major events and pick-up points.",
+    severity: "severe",
+    tone: "red",
+    target: "explore",
+  },
+  {
+    id: "brief-roads",
+    title: "A38 southbound still slower through the centre",
+    detail: "Driving is moving, but city-centre approaches remain patchy.",
+    severity: "warning",
+    tone: "amber",
+    target: "travel",
+  },
+  {
+    id: "brief-rail",
+    title: "Temple Meads departures mostly steady",
+    detail: "A few short platform holds, but mainline services are broadly usable.",
+    severity: "good",
+    tone: "green",
+    target: "travel",
+  },
+  {
+    id: "brief-air",
+    title: "Air quality remains good across central Bristol",
+    detail: "No unusual pollution alerts for walking, cycling or outdoor plans.",
+    severity: "good",
+    tone: "green",
     target: "weather",
   },
 ];

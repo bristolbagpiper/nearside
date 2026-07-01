@@ -37,6 +37,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import {
   cityOptions,
+  cityBriefingItems,
   dailyForecast,
   events,
   hourlyForecast,
@@ -49,6 +50,7 @@ import {
 import type {
   CityOption,
   CityPulseItem,
+  BriefingListItem,
   DrawerItem,
   EventItem,
   ExploreMode,
@@ -735,8 +737,10 @@ interface CityDashboardData {
   hourlyForecast: HourlyForecastHour[];
 }
 
-function getRoutePathFromPulseTarget(target: PulseTarget): RoutePath {
-  return target === "weather" ? "/weather" : "/travel";
+function getRoutePathFromPulseTarget(target: PulseTarget | "explore"): RoutePath {
+  if (target === "weather") return "/weather";
+  if (target === "explore") return "/explore";
+  return "/travel";
 }
 
 function getCityBriefingSummary(snapshot: WeatherSnapshot, disruption: DisruptionState, pulseItems: CityPulseItem[]): string {
@@ -757,6 +761,19 @@ function getCityBriefingSummary(snapshot: WeatherSnapshot, disruption: Disruptio
 function getWeatherPracticalLine(snapshot: WeatherSnapshot): string {
   const dryWindowTime = snapshot.dryWindow.match(/(\d{1,2}:\d{2})/)?.[1] ?? "later";
   return `Rain easing after ${dryWindowTime}. Light layer recommended.`;
+}
+
+function getTransportBrief(disruption: DisruptionState): string {
+  return `${disruption.routes[0]} and ${disruption.routes[1]} affected around ${disruption.nearbyStop}. ${disruption.operationalDetail}`;
+}
+
+function getRoadsBrief(roadRow: TravelRow | undefined): string {
+  if (!roadRow) return "Traffic is moving normally across the main city approaches.";
+  return `${roadRow.title} is ${roadRow.value.toLowerCase()}. ${roadRow.secondary ?? roadRow.note}`;
+}
+
+function getWeatherBrief(snapshot: WeatherSnapshot): string {
+  return `${snapshot.condition} now. ${snapshot.summary} ${snapshot.dryWindow}.`;
 }
 
 interface CityVariant {
@@ -1036,27 +1053,37 @@ function TodayPage({ city, dashboardData, onNavigate, savedIds, onToggleSaved, o
   const weatherRef = useRef<HTMLElement | null>(null);
   const featured = events[0]!;
   const otherEvents = events.slice(1, 4);
+  const roadSnapshot = dashboardData.travelRows.roads[0];
   const cityBriefingSummary = getCityBriefingSummary(
     dashboardData.currentWeather,
     dashboardData.disruption,
     dashboardData.pulseItems,
   );
   const airPulse = dashboardData.pulseItems.find((item) => item.id === "air");
+  const cityBannerImage = `${import.meta.env.BASE_URL}assets/bristol-briefing.webp`;
 
   return (
     <div className="page-content today-page">
-      <section className="today-context-row">
-        <div>
-          <h1>{getGreeting()}, {city.name}</h1>
-          <p className="today-brief-summary">{cityBriefingSummary}</p>
+      <section className="today-briefing" aria-label={`${city.name} right now`}>
+        <div className="today-briefing-grid">
+          <div className="today-briefing-media" aria-hidden="true">
+            <img src={cityBannerImage} alt="" />
+          </div>
+          <div className="today-briefing-overlay" aria-hidden="true" />
+          <div className="today-briefing-lead">
+            <div className="today-briefing-heading">
+              <h1>{getGreeting()}, {city.name}</h1>
+              <p className="today-brief-summary">{cityBriefingSummary}</p>
+            </div>
+          </div>
+          <div className="today-briefing-aside">
+            <CurrentWeatherCard weather={dashboardData.currentWeather} onClick={() => onNavigate("/weather")} />
+          </div>
         </div>
-        <CurrentWeatherCard weather={dashboardData.currentWeather} onClick={() => onNavigate("/weather")} />
-      </section>
 
-      <section className="today-pulse-section">
         <div className="today-section-kicker">
           <span>City pulse</span>
-          <small>Live operating picture</small>
+          <small>Glanceable summary</small>
         </div>
         <LayoutGroup id="city-pulse">
           <div className="pulse-grid">
@@ -1069,10 +1096,18 @@ function TodayPage({ city, dashboardData, onNavigate, savedIds, onToggleSaved, o
             ))}
           </div>
         </LayoutGroup>
+        <PulseBriefingList items={cityBriefingItems} onNavigate={onNavigate} />
         <DisruptionAlert disruption={dashboardData.disruption} onNavigate={onNavigate} />
       </section>
 
-      <section className="today-live-city" aria-label="Live city information">
+      <section className="today-detail-shell" aria-label="Travel and weather detail">
+        <div className="today-section-kicker">
+          <span>Travel detail</span>
+          <small>Nearby departures and practical conditions</small>
+        </div>
+      </section>
+
+      <section className="today-live-city" aria-label="Live city detail">
         <TravelSummary
           ref={travelRef}
           activeTab={travelTab}
@@ -1184,6 +1219,38 @@ function PulseStatusCard({ item, onClick }: PulseStatusCardProps) {
 interface DisruptionAlertProps {
   disruption: DisruptionState;
   onNavigate: NavigateHandler;
+}
+
+interface PulseBriefingListProps {
+  items: BriefingListItem[];
+  onNavigate: NavigateHandler;
+}
+
+function PulseBriefingList({ items, onNavigate }: PulseBriefingListProps) {
+  return (
+    <div className="pulse-briefing-list" aria-label="City pulse detail">
+      {items.map((item) => (
+        <div key={item.id} className={`disruption-alert-row pulse-briefing-row ${item.tone}`}>
+          <motion.button
+            type="button"
+            className="disruption-alert pulse-briefing-alert"
+            onClick={() => onNavigate(getRoutePathFromPulseTarget(item.target))}
+            whileHover={{ y: -1 }}
+            transition={MOTION_QUICK}
+          >
+            <TriangleAlert className="pulse-briefing-icon" size={17} />
+            <span className="pulse-briefing-copy">
+              <strong>{item.title}</strong>
+              <small>{item.detail}</small>
+            </span>
+          </motion.button>
+          <button className="text-link alert-link" onClick={() => onNavigate(getRoutePathFromPulseTarget(item.target))}>
+            See details
+          </button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function DisruptionAlert({ disruption, onNavigate }: DisruptionAlertProps) {
@@ -1309,7 +1376,7 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
       <motion.div className="travel-tab-panel" layout>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={`${mode}-${activeTab}`}
+            key={activeTab}
             className="travel-rows travel-rows-list"
             initial={{ opacity: 0, y: 3 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1370,7 +1437,7 @@ const TravelSummary = React.forwardRef<HTMLElement, TravelSummaryProps>(function
                 </motion.div>
               );
             })}
-            {mode === "transport" && activeTab === "Buses" ? (
+            {activeTab === "Buses" ? (
               <div className="travel-list-footer">
                 <button className="text-link inline-link" onClick={() => onNavigate("/travel")}>
                   View all bus services

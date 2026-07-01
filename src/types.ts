@@ -73,6 +73,13 @@ export type TravelUpdate = SeverityState & {
   detail: string;
 };
 
+export type BriefingListItem = SeverityState & {
+  id: string;
+  title: string;
+  detail: string;
+  target: PulseTarget | "explore";
+};
+
 export type RoadRow = SeverityState & {
   name: string;
   status: string;
